@@ -43,25 +43,28 @@ In the Firebase Console:
 
 ### 3. Run locally
 
-Open `pokesearch.html` directly in a browser, or serve the folder over HTTP (Firebase Auth requires `http://localhost`, not `file://`):
+Serve the folder over HTTP (Firebase Auth requires `http://localhost`, not `file://`):
 
 ```sh
 npx http-server -p 5500
-# then open http://localhost:5500/pokesearch.html
+# then open http://localhost:5500/
 ```
+
+On Windows, if PowerShell blocks the npx script, run `npx.cmd http-server -p 5500` instead, or one-time `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
 ### 4. Deploy (pick one — all free)
 
-This is a static site: just `pokesearch.html` + `config.js` + the `config.example.js` template. Don't deploy `node_modules/` (not needed at runtime; Firebase loads via CDN).
+This is a static site: only `index.html` is needed at runtime. `firebase.json` (included) tells Firebase Hosting to ship `index.html` and skip `config.js`, `API_S.env`, `node_modules/`, and other dev-only files.
 
 **Firebase Hosting** (recommended if you already use Firebase)
 
 ```sh
 npm install -g firebase-tools
 firebase login
-firebase init hosting    # public dir: . (current folder), single-page app: No
-firebase deploy
+firebase deploy    # firebase.json already configured
 ```
+
+The first `firebase deploy` will ask which project to link — pick the one matching your `config.js` Firebase IDs.
 
 **Netlify** — drag the folder onto [app.netlify.com/drop](https://app.netlify.com/drop), or connect a GitHub repo. Add `config.js` via the dashboard (Site settings → Build & deploy → Environment, or upload directly) — never commit it.
 
@@ -71,9 +74,10 @@ firebase deploy
 
 ## File overview
 
-- `pokesearch.html` — entire app (HTML + CSS + JS in one file).
+- `index.html` — entire app (HTML + CSS + JS in one file).
+- `firebase.json` — Firebase Hosting config; tells `firebase deploy` what to ship and what to skip.
 - `config.example.js` — template; commit this.
-- `config.js` — your real keys; **gitignored**, never commit.
+- `config.js` — your real keys; **gitignored**, never commit, never deployed.
 - `pokesearch-backup.html` — older snapshot.
 - `package.json` — only there to pull in the `firebase` npm package for local development; the deployed site loads Firebase from a CDN.
 
