@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PokeSearch</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        input[type="file"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="file"]:focus,
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .paste-area {
+            border: 3px dashed #d0d0d0;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            background: #f9f9f9;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .paste-area:hover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+
+        .paste-area.active {
+            border-color: #667eea;
+            background: #e8ebff;
+        }
+
+        .paste-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .preview-section {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 12px;
+            display: none;
+            margin: 0 auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .pokemon-id {
+            color: #7f8c8d;
+            font-size: 0.95em;
+            font-weight: 600;
+            margin-top: 3px;
+        }
+
+        .type-badge {
+            padding: 6px 14px;
+            border-radius: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75em;
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .stats-section {
+            margin: 25px 0;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        .stats-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .stat-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .stat-name {
+            width: 120px;
+            font-weight: 600;
+            color: #555;
+            text-transform: uppercase;
+            font-size: 0.85em;
+        }
+
+        .stat-bar-container {
+            flex: 1;
+            height: 20px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0 10px;
+        }
+
+        .stat-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.5s ease;
+            border-radius: 10px;
+        }
+
+        .stat-value {
+            min-width: 40px;
+            text-align: right;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .region-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .region-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 12px;
+        }
+
+        .region-name {
+            font-size: 1.5em;
+            color: #667eea;
+            font-weight: bold;
+            text-transform: capitalize;
+        }
+
+        .generation-text {
+            color: #7f8c8d;
+            margin-top: 5px;
+            font-size: 0.95em;
+        }
+
+        .games-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .games-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 12px;
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 8px;
+        }
+
+        .game-badge {
+            padding: 6px 12px;
+            background: #ecf0f1;
+            color: #2c3e50;
+            border-radius: 8px;
+            font-weight: 500;
+            text-transform: capitalize;
+            font-size: 0.85em;
+            text-align: center;
+        }
+
+        .abilities-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .abilities-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 12px;
+        }
+
+        .abilities-list {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .ability-badge {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border-radius: 20px;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .description-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .description-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 12px;
+        }
+
+        .description-text {
+            color: #555;
+            line-height: 1.8;
+            font-size: 1em;
+        }
+
+        .ai-reasoning {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .ai-reasoning-title {
+            font-weight: bold;
+            color: #856404;
+            margin-bottom: 8px;
+        }
+
+        .ai-reasoning-text {
+            color: #856404;
+            line-height: 1.6;
+        }
+
+        .confidence-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.95em;
+            font-weight: bold;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .match-number {
+            text-align: center;
+            color: #667eea;
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .pokemon-card {
+            position: relative;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+
+        .pokemon-compact-header {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .pokemon-compact-header:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .compact-sprite {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 50%;
+            padding: 10px;
+            margin-right: 20px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .compact-sprite img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .compact-info {
+            flex: 1;
+        }
+
+        .compact-name {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #2c3e50;
+            text-transform: capitalize;
+            margin-bottom: 5px;
+        }
+
+        .compact-types {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .expand-button {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            color: #667eea;
+            transition: transform 0.3s;
+            flex-shrink: 0;
+            margin-left: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .expand-button.expanded {
+            transform: rotate(180deg);
+        }
+
+        .pokemon-details {
+            display: none;
+            padding: 0 30px 30px 30px;
+            animation: slideDown 0.3s ease;
+        }
+
+        .pokemon-details.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .multiple-matches-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            color: white;
+        }
+
+        .multiple-matches-header h2 {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+
+        .multiple-matches-header p {
+            opacity: 0.9;
+        }
+
+        .card-separator {
+            margin: 40px 0;
+            border-top: 3px dashed #d0d0d0;
+        }
+
+        .camera-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .camera-modal.show {
+            display: flex;
+        }
+
+        .camera-container {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+
+        .camera-video {
+            width: 100%;
+            max-width: 640px;
+            border-radius: 12px;
+            background: #000;
+        }
+
+        .camera-controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .camera-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .camera-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .capture-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .close-camera-btn {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .camera-icon-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .camera-icon-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        canvas {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        /* Type colors */
+        .type-normal { background: #A8A878; }
+        .type-fire { background: #F08030; }
+        .type-water { background: #6890F0; }
+        .type-electric { background: #F8D030; }
+        .type-grass { background: #78C850; }
+        .type-ice { background: #98D8D8; }
+        .type-fighting { background: #C03028; }
+        .type-poison { background: #A040A0; }
+        .type-ground { background: #E0C068; }
+        .type-flying { background: #A890F0; }
+        .type-psychic { background: #F85888; }
+        .type-bug { background: #A8B820; }
+        .type-rock { background: #B8A038; }
+        .type-ghost { background: #705898; }
+        .type-dragon { background: #7038F8; }
+        .type-dark { background: #705848; }
+        .type-steel { background: #B8B8D0; }
+        .type-fairy { background: #EE99AC; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 PokeSearch</h1>
+        <p class="subtitle">Upload, paste, or link to any image - we'll find the closest Pokemon match!</p>
+
+        <div class="paste-area" id="pasteArea">
+            <div class="paste-icon">📋</div>
+            <p><strong>Click here and press Ctrl+V (Cmd+V on Mac)</strong></p>
+            <p style="color: #888; font-size: 0.9em; margin-top: 8px;">to paste an image from your clipboard</p>
+        </div>
+
+        <div class="input-section">
+            <div class="input-group">
+                <label for="fileInput">Or upload from computer:</label>
+                <input type="file" id="fileInput" accept="image/*">
+            </div>
+
+            <div class="input-group">
+                <label for="urlInput">Or paste image URL:</label>
+                <input type="text" id="urlInput" placeholder="https://example.com/image.jpg">
+            </div>
+
+            <div class="input-group">
+                <button class="camera-icon-btn" id="openCameraBtn">📷 Take Photo with Camera</button>
+            </div>
+        </div>
+
+        <div class="preview-section">
+            <img id="imagePreview" alt="Preview">
+        </div>
+
+        <button id="identifyBtn" disabled>Identify Pokemon</button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing image and fetching Pokemon data...</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="result-section" id="result"></div>
+    </div>
+
+    <div class="camera-modal" id="cameraModal">
+        <div class="camera-container">
+            <video id="cameraVideo" class="camera-video" autoplay playsinline></video>
+            <canvas id="cameraCanvas"></canvas>
+            <div class="camera-controls">
+                <button class="camera-btn capture-btn" id="captureBtn">📸 Capture Photo</button>
+                <button class="camera-btn close-camera-btn" id="closeCameraBtn">✕ Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        const API_KEY = CONFIG.GEMINI_API_KEY;
+        const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+
+        let currentImage = null;
+
+        const pasteArea = document.getElementById('pasteArea');
+        const fileInput = document.getElementById('fileInput');
+        const urlInput = document.getElementById('urlInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const identifyBtn = document.getElementById('identifyBtn');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const result = document.getElementById('result');
+        const openCameraBtn = document.getElementById('openCameraBtn');
+        const cameraModal = document.getElementById('cameraModal');
+        const cameraVideo = document.getElementById('cameraVideo');
+        const cameraCanvas = document.getElementById('cameraCanvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const closeCameraBtn = document.getElementById('closeCameraBtn');
+
+        let cameraStream = null;
+
+        pasteArea.addEventListener('click', () => {
+            pasteArea.focus();
+        });
+
+        pasteArea.addEventListener('paste', handlePaste);
+        document.addEventListener('paste', handlePaste);
+
+        function handlePaste(e) {
+            const items = e.clipboardData.items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    const blob = item.getAsFile();
+                    displayImage(blob);
+                    e.preventDefault();
+                    break;
+                }
+            }
+        }
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                displayImage(file);
+            }
+        });
+
+        urlInput.addEventListener('input', async (e) => {
+            const url = e.target.value.trim();
+            if (url) {
+                try {
+                    imagePreview.src = url;
+                    imagePreview.style.display = 'block';
+                    currentImage = url;
+                    identifyBtn.disabled = false;
+                    hideError();
+                } catch (err) {
+                    showError('Invalid image URL');
+                }
+            }
+        });
+
+        function displayImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imagePreview.src = e.target.result;
+                imagePreview.style.display = 'block';
+                currentImage = e.target.result;
+                identifyBtn.disabled = false;
+                hideError();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        identifyBtn.addEventListener('click', async () => {
+            if (!currentImage) return;
+
+            hideError();
+            result.classList.remove('show');
+            loading.classList.add('show');
+            identifyBtn.disabled = true;
+
+            try {
+                let base64Image;
+
+                if (currentImage.startsWith('http')) {
+                    const response = await fetch(currentImage);
+                    const blob = await response.blob();
+                    base64Image = await blobToBase64(blob);
+                } else {
+                    base64Image = currentImage.split(',')[1];
+                }
+
+                const requestBody = {
+                    contents: [{
+                        parts: [
+                            {
+                                text: "Look at this image and determine which Pokemon it most closely resembles. Even if it's not actually a Pokemon, find the closest matching Pokemon(s) based on appearance, colors, features, or characteristics. If multiple Pokemon could be a match, list up to 3 possibilities with confidence percentages. Format your response EXACTLY like this:\npokemon_name: 70%\nanother_pokemon: 20%\nthird_pokemon: 10%\n\nIf only one Pokemon matches, just give that one with 100%. Use only lowercase Pokemon names with hyphens if needed (e.g., 'mr-mime'). Do not include any other text or explanation."
+                            },
+                            {
+                                inline_data: {
+                                    mime_type: "image/jpeg",
+                                    data: base64Image
+                                }
+                            }
+                        ]
+                    }]
+                };
+
+                const geminiResponse = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!geminiResponse.ok) {
+                    const errorData = await geminiResponse.json();
+                    throw new Error(errorData.error?.message || 'API request failed');
+                }
+
+                const geminiData = await geminiResponse.json();
+                const aiResponse = geminiData.candidates[0].content.parts[0].text.trim();
+
+                // Parse multiple Pokemon matches with percentages
+                const matches = parseMatches(aiResponse);
+
+                // Fetch all Pokemon data
+                await fetchAllPokemonData(matches);
+
+            } catch (err) {
+                showError(`Error: ${err.message}`);
+            } finally {
+                loading.classList.remove('show');
+                identifyBtn.disabled = false;
+            }
+        });
+
+        function parseMatches(aiResponse) {
+            const lines = aiResponse.trim().split('\n').filter(line => line.trim());
+            const matches = [];
+
+            for (let line of lines) {
+                // Match format: "pokemon-name: 70%"
+                const match = line.match(/^([a-z0-9-]+):\s*(\d+)%/i);
+                if (match) {
+                    matches.push({
+                        name: match[1].toLowerCase().trim(),
+                        confidence: parseInt(match[2])
+                    });
+                }
+            }
+
+            // If parsing failed, try to extract at least one Pokemon name
+            if (matches.length === 0) {
+                const firstWord = aiResponse.split(/[\s\n,.!?:]/)[0].replace(/[^a-z-]/gi, '').toLowerCase();
+                if (firstWord) {
+                    matches.push({ name: firstWord, confidence: 100 });
+                }
+            }
+
+            return matches;
+        }
+
+        async function fetchAllPokemonData(matches) {
+            try {
+                const allPokemonData = [];
+
+                // Fetch data for all matched Pokemon
+                for (let match of matches) {
+                    try {
+                        const pokemonResponse = await fetch(`https://pokeapi.co/api/v2/pokemon/${match.name}`);
+                        if (!pokemonResponse.ok) continue;
+                        const pokemon = await pokemonResponse.json();
+
+                        const speciesResponse = await fetch(pokemon.species.url);
+                        const species = await speciesResponse.json();
+
+                        const flavorText = species.flavor_text_entries.find(entry => entry.language.name === 'en');
+                        const description = flavorText ? flavorText.flavor_text.replace(/\f/g, ' ') : 'No description available.';
+
+                        allPokemonData.push({
+                            pokemon,
+                            species,
+                            description,
+                            confidence: match.confidence
+                        });
+                    } catch (err) {
+                        console.error(`Failed to fetch ${match.name}:`, err);
+                    }
+                }
+
+                if (allPokemonData.length === 0) {
+                    throw new Error('Could not fetch any Pokemon data');
+                }
+
+                // Display all Pokemon cards
+                displayAllPokemonCards(allPokemonData);
+
+            } catch (err) {
+                showError('Could not fetch Pokemon data. Pokemon might not exist in database.');
+            }
+        }
+
+        function displayAllPokemonCards(allPokemonData) {
+            let html = '';
+
+            // Add header if multiple matches
+            if (allPokemonData.length > 1) {
+                html += `
+                    <div class="multiple-matches-header">
+                        <h2>🎯 Found ${allPokemonData.length} Possible Matches!</h2>
+                        <p>Here are the Pokemon that best match your image, ranked by confidence</p>
+                    </div>
+                `;
+            }
+
+            // Display each Pokemon card
+            allPokemonData.forEach((data, index) => {
+                if (index > 0) {
+                    html += '<div class="card-separator"></div>';
+                }
+                html += generatePokemonCard(data.pokemon, data.species, data.description, data.confidence, index + 1);
+            });
+
+            result.innerHTML = html;
+            result.classList.add('show');
+        }
+
+        function generatePokemonCard(pokemon, species, description, confidence, matchNumber) {
+            const types = pokemon.types.map(t => t.type.name);
+            const sprite = pokemon.sprites.other['official-artwork'].front_default || pokemon.sprites.front_default;
+
+            // Get generation and region info
+            const generationMap = {
+                'generation-i': { name: 'Kanto', gen: 'I' },
+                'generation-ii': { name: 'Johto', gen: 'II' },
+                'generation-iii': { name: 'Hoenn', gen: 'III' },
+                'generation-iv': { name: 'Sinnoh', gen: 'IV' },
+                'generation-v': { name: 'Unova', gen: 'V' },
+                'generation-vi': { name: 'Kalos', gen: 'VI' },
+                'generation-vii': { name: 'Alola', gen: 'VII' },
+                'generation-viii': { name: 'Galar', gen: 'VIII' },
+                'generation-ix': { name: 'Paldea', gen: 'IX' }
+            };
+
+            const generationName = species.generation.name;
+            const regionInfo = generationMap[generationName] || { name: 'Unknown', gen: '?' };
+
+            // Get all games
+            const games = pokemon.game_indices.map(g => g.version.name);
+
+            const cardId = `card-${pokemon.id}-${matchNumber}`;
+
+            return `
+                <div class="pokemon-card">
+                    <div class="pokemon-compact-header" onclick="toggleDetails('${cardId}')">
+                        <div class="compact-sprite">
+                            <img src="${sprite}" alt="${pokemon.name}">
+                        </div>
+                        <div class="compact-info">
+                            <div class="compact-name">
+                                ${pokemon.name}
+                                <span class="confidence-badge">${confidence}%</span>
+                            </div>
+                            <div class="pokemon-id">#${String(pokemon.id).padStart(4, '0')}</div>
+                            <div class="compact-types">
+                                ${types.map(type => `
+                                    <span class="type-badge type-${type}">${type}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="expand-button" id="arrow-${cardId}">▼</div>
+                    </div>
+
+                    <div class="pokemon-details" id="${cardId}">
+
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="info-label">Height</div>
+                                <div class="info-value">${(pokemon.height / 10).toFixed(1)}m</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Weight</div>
+                                <div class="info-value">${(pokemon.weight / 10).toFixed(1)}kg</div>
+                            </div>
+                        </div>
+
+                        <div class="region-section">
+                            <div class="region-title">Origin Region</div>
+                            <div class="region-name">${regionInfo.name}</div>
+                            <div class="generation-text">Generation ${regionInfo.gen}</div>
+                        </div>
+
+                        <div class="games-section">
+                            <div class="games-title">Appears In (${games.length} games)</div>
+                            <div class="games-grid">
+                                ${games.map(game => `
+                                    <div class="game-badge">${game.replace('-', ' ')}</div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="abilities-section">
+                            <div class="abilities-title">Abilities</div>
+                            <div class="abilities-list">
+                                ${pokemon.abilities.map(a => `
+                                    <span class="ability-badge">${a.ability.name.replace('-', ' ')}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="stats-section">
+                            <div class="stats-title">Base Stats</div>
+                            ${pokemon.stats.map(stat => {
+                                const statName = stat.stat.name.toUpperCase().replace('-', ' ');
+                                const statValue = stat.base_stat;
+                                const percentage = (statValue / 255) * 100;
+                                return `
+                                    <div class="stat-row">
+                                        <div class="stat-name">${statName}</div>
+                                        <div class="stat-bar-container">
+                                            <div class="stat-bar" style="width: ${percentage}%"></div>
+                                        </div>
+                                        <div class="stat-value">${statValue}</div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+
+                        <div class="description-section">
+                            <div class="description-title">Description</div>
+                            <div class="description-text">${description}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleDetails(cardId) {
+            const detailsElement = document.getElementById(cardId);
+            const arrowElement = document.getElementById(`arrow-${cardId}`);
+
+            detailsElement.classList.toggle('show');
+            arrowElement.classList.toggle('expanded');
+        }
+
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        function showError(message) {
+            error.textContent = message;
+            error.classList.add('show');
+        }
+
+        function hideError() {
+            error.classList.remove('show');
+        }
+
+        pasteArea.addEventListener('focus', () => {
+            pasteArea.classList.add('active');
+        });
+
+        pasteArea.addEventListener('blur', () => {
+            pasteArea.classList.remove('active');
+        });
+
+        pasteArea.setAttribute('tabindex', '0');
+
+        // Camera functionality
+        openCameraBtn.addEventListener('click', async () => {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' } // Use back camera on mobile
+                });
+                cameraVideo.srcObject = cameraStream;
+                cameraModal.classList.add('show');
+            } catch (err) {
+                showError('Could not access camera. Please check permissions.');
+            }
+        });
+
+        captureBtn.addEventListener('click', () => {
+            // Set canvas size to match video
+            cameraCanvas.width = cameraVideo.videoWidth;
+            cameraCanvas.height = cameraVideo.videoHeight;
+
+            // Draw video frame to canvas
+            const context = cameraCanvas.getContext('2d');
+            context.drawImage(cameraVideo, 0, 0);
+
+            // Convert to base64
+            const imageData = cameraCanvas.toDataURL('image/jpeg');
+
+            // Display the captured image
+            imagePreview.src = imageData;
+            imagePreview.style.display = 'block';
+            currentImage = imageData;
+            identifyBtn.disabled = false;
+            hideError();
+
+            // Close camera
+            stopCamera();
+        });
+
+        closeCameraBtn.addEventListener('click', () => {
+            stopCamera();
+        });
+
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            cameraModal.classList.remove('show');
+        }
+
+        // Close camera when clicking outside
+        cameraModal.addEventListener('click', (e) => {
+            if (e.target === cameraModal) {
+                stopCamera();
+            }
+        });
+    </script>
+</body>
+</html>

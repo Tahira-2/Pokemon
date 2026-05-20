@@ -1,0 +1,3066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PokeSearch - Pokedex</title>
+    <!-- EmailJS SDK (free — 200 emails/month, used for OTP on signup) -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <!-- Firebase SDK (free Spark plan — password auth + persistence) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <style>
+        :root {
+            --pokedex-red: #dc2626;
+            --pokedex-red-dark: #991b1b;
+            --pokedex-red-light: #ef4444;
+            --screen-bg: #1a2332;
+            --screen-bg-light: #d1fae5;
+            --screen-border: #0f172a;
+            --text-light: #e2e8f0;
+            --text-dark: #1e293b;
+            --accent-blue: #3b82f6;
+            --accent-green: #22c55e;
+            --accent-yellow: #eab308;
+            --btn-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 50%, #1e1b4b 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+
+        /* ===== POKEDEX DEVICE ===== */
+        .pokedex {
+            width: 420px;
+            max-width: 100%;
+            min-height: 780px;
+            background: var(--pokedex-red);
+            border-radius: 24px;
+            box-shadow:
+                0 0 0 3px var(--pokedex-red-dark),
+                0 20px 60px rgba(0,0,0,0.5),
+                inset 0 2px 0 rgba(255,255,255,0.15);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ===== TOP STRIP (indicator lights) ===== */
+        .pokedex-top {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 20px 10px;
+            background: var(--pokedex-red-dark);
+            border-bottom: 3px solid #7f1d1d;
+        }
+
+        .lens-big {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #93c5fd, #2563eb, #1e40af);
+            border: 4px solid #e2e8f0;
+            box-shadow:
+                0 0 12px rgba(59,130,246,0.6),
+                inset 0 -3px 6px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .lens-big:hover {
+            transform: scale(1.08);
+            box-shadow:
+                0 0 18px rgba(59,130,246,0.9),
+                inset 0 -3px 6px rgba(0,0,0,0.3);
+        }
+
+        .lens-big:active {
+            transform: scale(0.95);
+        }
+
+        .indicator-lights {
+            display: flex;
+            gap: 8px;
+            margin-left: 10px;
+        }
+
+        .light {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .light-red { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+        .light-yellow { background: #eab308; box-shadow: 0 0 6px #eab308; }
+        .light-green { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+
+        .pokedex-top-right {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+        }
+
+        .top-icon-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .top-icon-btn:hover {
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.1);
+        }
+
+        /* ===== SCREEN AREA ===== */
+        .screen-frame {
+            margin: 10px 16px 8px;
+            background: #64748b;
+            border-radius: 16px;
+            padding: 6px;
+            box-shadow: inset 0 4px 8px rgba(0,0,0,0.4);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .screen {
+            background: var(--screen-bg);
+            border-radius: 12px;
+            min-height: 0;
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            position: relative;
+            scrollbar-width: thin;
+            scrollbar-color: #475569 transparent;
+        }
+
+        .screen::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .screen::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .screen::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        /* Screen content states */
+        .screen-idle {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100%;
+            color: var(--text-light);
+            text-align: center;
+            padding: 30px;
+        }
+
+        .screen-idle .pokeball-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .screen-idle h2 {
+            font-size: 1.3em;
+            margin-bottom: 8px;
+            color: #94a3b8;
+        }
+
+        .screen-idle p {
+            font-size: 0.85em;
+            color: #64748b;
+        }
+
+        /* Loading state */
+        .screen-loading {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100%;
+            color: var(--text-light);
+        }
+
+        .screen-loading.show {
+            display: flex;
+        }
+
+        .pokeball-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #475569;
+            border-top: 4px solid var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
+        .screen-loading p {
+            color: #94a3b8;
+            font-size: 0.9em;
+        }
+
+        /* Error state */
+        .screen-error {
+            display: none;
+            padding: 20px;
+            text-align: center;
+            color: #fca5a5;
+        }
+
+        .screen-error.show {
+            display: block;
+        }
+
+        .screen-error .error-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        /* ===== RESULTS: LIST VIEW ===== */
+        .results-list {
+            display: none;
+            padding: 12px;
+        }
+
+        .results-list.show {
+            display: block;
+        }
+
+        .results-header {
+            text-align: center;
+            padding: 8px 0 12px;
+            color: var(--accent-green);
+            font-weight: 700;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #334155;
+            margin-bottom: 10px;
+        }
+
+        .result-list-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .result-list-item:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(59,130,246,0.3);
+            transform: translateX(4px);
+        }
+
+        .list-sprite {
+            width: 56px;
+            height: 56px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+            padding: 4px;
+            flex-shrink: 0;
+        }
+
+        .list-sprite img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .list-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .list-name {
+            font-size: 1.05em;
+            font-weight: 700;
+            color: #e2e8f0;
+            text-transform: capitalize;
+        }
+
+        .list-sub {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        .list-id {
+            font-size: 0.8em;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .list-type-badge {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.65em;
+            font-weight: 700;
+            color: white;
+            text-transform: uppercase;
+        }
+
+        .list-confidence {
+            margin-left: auto;
+            font-size: 0.85em;
+            font-weight: 700;
+            color: var(--accent-green);
+            flex-shrink: 0;
+        }
+
+        .list-arrow {
+            color: #475569;
+            font-size: 1.2em;
+            flex-shrink: 0;
+        }
+
+        /* ===== RESULTS: DETAIL VIEW ===== */
+        .result-detail {
+            display: none;
+            padding: 0;
+            color: var(--text-light);
+        }
+
+        .result-detail.show {
+            display: block;
+        }
+
+        .detail-back-bar {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            background: rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: background 0.2s;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        .detail-back-bar:hover {
+            background: rgba(0,0,0,0.5);
+        }
+
+        .detail-back-bar span {
+            color: var(--accent-blue);
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .detail-hero {
+            text-align: center;
+            padding: 10px 20px 16px;
+            background: linear-gradient(180deg, rgba(59,130,246,0.1) 0%, transparent 100%);
+        }
+
+        .detail-hero img {
+            width: 160px;
+            height: 160px;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 12px rgba(59,130,246,0.3));
+        }
+
+        .detail-name {
+            font-size: 1.6em;
+            font-weight: 800;
+            text-transform: capitalize;
+            margin-top: 6px;
+            color: #f1f5f9;
+        }
+
+        .detail-id {
+            color: #64748b;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .detail-types {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .detail-type-badge {
+            padding: 4px 14px;
+            border-radius: 14px;
+            font-size: 0.78em;
+            font-weight: 700;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-confidence-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .detail-confidence-bar .conf-label {
+            color: #94a3b8;
+            font-size: 0.8em;
+        }
+
+        .detail-confidence-bar .conf-value {
+            color: var(--accent-green);
+            font-weight: 800;
+            font-size: 1.1em;
+        }
+
+        .detail-sections {
+            padding: 0 14px 20px;
+        }
+
+        .detail-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 14px;
+            margin-top: 12px;
+        }
+
+        .detail-section-title {
+            font-size: 0.8em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-blue);
+            margin-bottom: 10px;
+        }
+
+        .detail-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .detail-info-box {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .detail-info-label {
+            font-size: 0.7em;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .detail-info-val {
+            font-size: 1.15em;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+
+        .detail-stat-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .detail-stat-name {
+            width: 75px;
+            font-size: 0.72em;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+
+        .detail-stat-bar-bg {
+            flex: 1;
+            height: 8px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0 8px;
+        }
+
+        .detail-stat-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+
+        .detail-stat-val {
+            width: 32px;
+            text-align: right;
+            font-size: 0.8em;
+            font-weight: 700;
+            color: #cbd5e1;
+        }
+
+        .detail-abilities-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .detail-ability-chip {
+            padding: 5px 12px;
+            background: rgba(99,102,241,0.3);
+            border: 1px solid rgba(99,102,241,0.4);
+            border-radius: 16px;
+            font-size: 0.78em;
+            font-weight: 600;
+            color: #a5b4fc;
+            text-transform: capitalize;
+        }
+
+        .detail-desc-text {
+            color: #94a3b8;
+            line-height: 1.6;
+            font-size: 0.88em;
+        }
+
+        .detail-region-name {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: var(--accent-yellow);
+            text-transform: capitalize;
+        }
+
+        .detail-generation {
+            color: #64748b;
+            font-size: 0.85em;
+            margin-top: 2px;
+        }
+
+        .detail-games-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .detail-game-chip {
+            padding: 3px 8px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 6px;
+            font-size: 0.7em;
+            color: #94a3b8;
+            text-transform: capitalize;
+        }
+
+        .detail-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding: 0 14px 16px;
+        }
+
+        .detail-action-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.06);
+            color: #cbd5e1;
+            font-size: 0.82em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            width: auto;
+        }
+
+        .detail-action-btn:hover {
+            background: rgba(255,255,255,0.12);
+            transform: translateY(-1px);
+        }
+
+        /* ===== PREVIEW BAR (above controls) ===== */
+        .preview-bar {
+            display: none;
+            padding: 6px 16px;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .preview-bar.show {
+            display: flex;
+        }
+
+        .preview-bar img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .preview-bar .preview-text {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.82em;
+            flex: 1;
+        }
+
+        .preview-bar .preview-clear {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: rgba(255,255,255,0.6);
+            font-size: 0.75em;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: auto;
+            transition: all 0.2s;
+        }
+
+        .preview-bar .preview-clear:hover {
+            border-color: #f87171;
+            color: #f87171;
+        }
+
+        /* ===== CONTROLS AREA (bottom of pokedex) ===== */
+        .controls-area {
+            padding: 8px 16px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        /* Input row: camera + upload + search */
+        .input-actions-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .action-circle-btn {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.3);
+            background: var(--pokedex-red-dark);
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-circle-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: white;
+            transform: scale(1.08);
+        }
+
+        .action-circle-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+
+        .action-circle-btn input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .search-btn {
+            flex: 1;
+            padding: 14px;
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(34,197,94,0.3);
+            letter-spacing: 0.5px;
+        }
+
+        .search-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(34,197,94,0.5);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #475569;
+            box-shadow: none;
+        }
+
+        /* Bottom inputs: paste + URL */
+        .bottom-inputs {
+            display: flex;
+            gap: 8px;
+        }
+
+        .paste-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            border: 2px dashed rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.7);
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .paste-btn:hover, .paste-btn:focus {
+            border-color: var(--accent-blue);
+            background: rgba(59,130,246,0.1);
+            color: var(--accent-blue);
+        }
+
+        .url-input {
+            flex: 1;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
+            color: white;
+            font-size: 0.85em;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .url-input::placeholder {
+            color: rgba(255,255,255,0.3);
+        }
+
+        .url-input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        /* ===== CAMERA MODAL ===== */
+        .camera-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.92);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .camera-modal.show {
+            display: flex;
+        }
+
+        .camera-container {
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 16px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .camera-video {
+            width: 100%;
+            border-radius: 12px;
+            background: #000;
+        }
+
+        .camera-controls {
+            display: flex;
+            gap: 12px;
+            margin-top: 14px;
+            justify-content: center;
+        }
+
+        .camera-btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: auto;
+        }
+
+        .camera-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .capture-btn {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+        }
+
+        .close-camera-btn {
+            background: #ef4444;
+            color: white;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        /* ===== MODALS (History / Favorites) ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 24px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            color: #e2e8f0;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.4em;
+            font-weight: 700;
+        }
+
+        .close-modal {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            width: auto;
+        }
+
+        .history-grid, .favorites-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .history-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .history-item:hover {
+            transform: translateY(-4px);
+            border-color: rgba(59,130,246,0.3);
+        }
+
+        .history-sprite {
+            width: 70px;
+            height: 70px;
+            margin: 0 auto 8px;
+        }
+
+        .history-name {
+            font-weight: 700;
+            text-transform: capitalize;
+            margin-bottom: 4px;
+            font-size: 0.9em;
+        }
+
+        .history-confidence {
+            font-size: 0.8em;
+            color: #94a3b8;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #64748b;
+        }
+
+        .compact-types {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+
+        /* ===== TYPE COLORS ===== */
+        .type-normal { background: #A8A878; }
+        .type-fire { background: #F08030; }
+        .type-water { background: #6890F0; }
+        .type-electric { background: #F8D030; color: #333 !important; }
+        .type-grass { background: #78C850; }
+        .type-ice { background: #98D8D8; color: #333 !important; }
+        .type-fighting { background: #C03028; }
+        .type-poison { background: #A040A0; }
+        .type-ground { background: #E0C068; color: #333 !important; }
+        .type-flying { background: #A890F0; }
+        .type-psychic { background: #F85888; }
+        .type-bug { background: #A8B820; color: #333 !important; }
+        .type-rock { background: #B8A038; }
+        .type-ghost { background: #705898; }
+        .type-dragon { background: #7038F8; }
+        .type-dark { background: #705848; }
+        .type-steel { background: #B8B8D0; color: #333 !important; }
+        .type-fairy { background: #EE99AC; }
+
+        /* Stat bar colors */
+        .stat-hp { background: #ef4444; }
+        .stat-attack { background: #f97316; }
+        .stat-defense { background: #eab308; }
+        .stat-special-attack { background: #3b82f6; }
+        .stat-special-defense { background: #22c55e; }
+        .stat-speed { background: #ec4899; }
+
+        /* ===== MOBILE RESPONSIVE ===== */
+        @media (max-width: 460px) {
+            body {
+                padding: 0;
+                align-items: flex-start;
+            }
+
+            .pokedex {
+                border-radius: 0;
+                min-height: 100vh;
+                width: 100%;
+            }
+
+            .action-circle-btn {
+                width: 46px;
+                height: 46px;
+                font-size: 19px;
+            }
+
+            .action-circle-btn svg {
+                width: 20px;
+                height: 20px;
+            }
+
+            .search-btn {
+                font-size: 0.9em;
+                padding: 12px;
+            }
+        }
+
+        /* removed fixed-height media queries - screen now flexes */
+
+        /* ===== LIGHT MODE ===== */
+        body.light-mode {
+            background: linear-gradient(135deg, #e0e7ff 0%, #f0fdf4 50%, #fef3c7 100%);
+        }
+
+        body.light-mode .pokedex {
+            background: #ef4444;
+            box-shadow:
+                0 0 0 3px #dc2626,
+                0 20px 60px rgba(0,0,0,0.2);
+        }
+
+        body.light-mode .pokedex-top {
+            background: #dc2626;
+            border-bottom-color: #b91c1c;
+        }
+
+        body.light-mode .screen {
+            background: #f0fdf4;
+        }
+
+        body.light-mode .screen-frame {
+            background: #94a3b8;
+        }
+
+        body.light-mode .screen-idle {
+            color: #1e293b;
+        }
+
+        body.light-mode .screen-idle h2 {
+            color: #334155;
+        }
+
+        body.light-mode .screen-idle p {
+            color: #64748b;
+        }
+
+        body.light-mode .screen-loading p {
+            color: #475569;
+        }
+
+        body.light-mode .pokeball-spinner {
+            border-color: #cbd5e1;
+            border-top-color: #3b82f6;
+        }
+
+        body.light-mode .screen-error {
+            color: #dc2626;
+        }
+
+        body.light-mode .results-header {
+            color: #16a34a;
+            border-bottom-color: #d1d5db;
+        }
+
+        body.light-mode .result-list-item {
+            background: rgba(0,0,0,0.04);
+            border-color: #e5e7eb;
+        }
+
+        body.light-mode .result-list-item:hover {
+            background: rgba(59,130,246,0.06);
+            border-color: rgba(59,130,246,0.3);
+        }
+
+        body.light-mode .list-name {
+            color: #1e293b;
+        }
+
+        body.light-mode .list-id {
+            color: #94a3b8;
+        }
+
+        body.light-mode .list-confidence {
+            color: #16a34a;
+        }
+
+        body.light-mode .list-arrow {
+            color: #94a3b8;
+        }
+
+        body.light-mode .list-sprite {
+            background: rgba(0,0,0,0.05);
+        }
+
+        body.light-mode .result-detail {
+            color: #1e293b;
+        }
+
+        body.light-mode .detail-back-bar {
+            background: rgba(0,0,0,0.05);
+        }
+
+        body.light-mode .detail-back-bar:hover {
+            background: rgba(0,0,0,0.1);
+        }
+
+        body.light-mode .detail-hero {
+            background: linear-gradient(180deg, rgba(59,130,246,0.06) 0%, transparent 100%);
+        }
+
+        body.light-mode .detail-name {
+            color: #0f172a;
+        }
+
+        body.light-mode .detail-id {
+            color: #94a3b8;
+        }
+
+        body.light-mode .conf-label {
+            color: #64748b;
+        }
+
+        body.light-mode .conf-value {
+            color: #16a34a;
+        }
+
+        body.light-mode .detail-section {
+            background: rgba(0,0,0,0.04);
+        }
+
+        body.light-mode .detail-section-title {
+            color: #2563eb;
+        }
+
+        body.light-mode .detail-info-box {
+            background: white;
+        }
+
+        body.light-mode .detail-info-label {
+            color: #94a3b8;
+        }
+
+        body.light-mode .detail-info-val {
+            color: #1e293b;
+        }
+
+        body.light-mode .detail-stat-name {
+            color: #64748b;
+        }
+
+        body.light-mode .detail-stat-bar-bg {
+            background: #e2e8f0;
+        }
+
+        body.light-mode .detail-stat-val {
+            color: #334155;
+        }
+
+        body.light-mode .detail-ability-chip {
+            background: rgba(99,102,241,0.12);
+            border-color: rgba(99,102,241,0.2);
+            color: #4f46e5;
+        }
+
+        body.light-mode .detail-desc-text {
+            color: #475569;
+        }
+
+        body.light-mode .detail-region-name {
+            color: #ca8a04;
+        }
+
+        body.light-mode .detail-generation {
+            color: #94a3b8;
+        }
+
+        body.light-mode .detail-game-chip {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        body.light-mode .detail-action-btn {
+            background: rgba(0,0,0,0.05);
+            border-color: #d1d5db;
+            color: #334155;
+        }
+
+        body.light-mode .detail-action-btn:hover {
+            background: rgba(0,0,0,0.1);
+        }
+
+        body.light-mode .url-input {
+            background: rgba(0,0,0,0.06);
+            border-color: rgba(0,0,0,0.15);
+            color: #1e293b;
+        }
+
+        body.light-mode .url-input::placeholder {
+            color: rgba(0,0,0,0.35);
+        }
+
+        body.light-mode .preview-bar .preview-text {
+            color: rgba(255,255,255,0.9);
+        }
+
+        body.light-mode .modal-content {
+            background: #f8fafc;
+            color: #1e293b;
+        }
+
+        body.light-mode .history-item {
+            background: white;
+            border-color: #e5e7eb;
+        }
+
+        body.light-mode .history-item:hover {
+            border-color: rgba(59,130,246,0.3);
+        }
+
+        body.light-mode .history-name {
+            color: #1e293b;
+        }
+
+        body.light-mode .history-confidence {
+            color: #64748b;
+        }
+
+        body.light-mode .empty-state {
+            color: #94a3b8;
+        }
+
+        body.light-mode .modal-title {
+            color: #1e293b;
+        }
+
+        /* ===== AUTH MODAL ===== */
+        .auth-modal-content {
+            max-width: 380px;
+            text-align: center;
+        }
+
+        .auth-subtitle {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 18px;
+        }
+
+        .auth-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .auth-email-input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 2px solid #334155;
+            background: #1e293b;
+            color: #e2e8f0;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .auth-email-input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .auth-send-btn {
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: var(--btn-gradient);
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .auth-send-btn:hover {
+            opacity: 0.9;
+        }
+
+        .auth-send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .auth-error {
+            color: #f87171;
+            font-size: 13px;
+            margin-top: 10px;
+            min-height: 18px;
+        }
+
+        .auth-sent-icon {
+            font-size: 48px;
+            margin: 10px 0;
+        }
+
+        .auth-sent-msg {
+            color: #94a3b8;
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+
+        .auth-back-btn {
+            padding: 10px 24px;
+            border: 2px solid #475569;
+            border-radius: 10px;
+            background: transparent;
+            color: #e2e8f0;
+            font-size: 14px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .auth-back-btn:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .otp-input {
+            text-align: center;
+            font-size: 24px !important;
+            letter-spacing: 8px;
+            font-weight: 700;
+        }
+
+        .otp-footer {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .auth-switch {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 13px;
+            margin-top: 16px;
+        }
+
+        .auth-switch a {
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .auth-switch a:hover {
+            text-decoration: underline;
+        }
+
+        body.light-mode .auth-switch {
+            color: #64748b;
+        }
+
+        .auth-forgot-link {
+            display: block;
+            text-align: right;
+            margin-top: 6px;
+            color: var(--accent-blue);
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .auth-forgot-link:hover {
+            text-decoration: underline;
+        }
+
+        /* ===== PROFILE BUTTON ===== */
+        .profile-btn {
+            position: relative;
+        }
+
+        .profile-initial {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--btn-gradient);
+            color: white;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* ===== PROFILE DROPDOWN ===== */
+        .profile-dropdown {
+            display: none;
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 2000;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 14px 18px;
+            min-width: 220px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+        }
+
+        .profile-dropdown.show {
+            display: block;
+        }
+
+        .profile-dropdown-email {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-bottom: 12px;
+            word-break: break-all;
+        }
+
+        .profile-dropdown-signout {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #dc2626;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .profile-dropdown-signout:hover {
+            opacity: 0.85;
+        }
+
+        /* Auth prompt inside history/favorites modals */
+        .auth-prompt {
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .auth-prompt-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+        }
+
+        .auth-prompt-text {
+            color: #94a3b8;
+            font-size: 15px;
+            margin-bottom: 16px;
+        }
+
+        .auth-prompt-btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 10px;
+            background: var(--btn-gradient);
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Light mode auth overrides */
+        body.light-mode .auth-email-input {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #1e293b;
+        }
+
+        body.light-mode .auth-email-input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        body.light-mode .auth-subtitle,
+        body.light-mode .auth-sent-msg,
+        body.light-mode .profile-dropdown-email,
+        body.light-mode .auth-prompt-text {
+            color: #64748b;
+        }
+
+        body.light-mode .auth-back-btn {
+            border-color: #cbd5e1;
+            color: #1e293b;
+        }
+
+        body.light-mode .profile-dropdown {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+
+        /* ===== API KEY MODAL + DROPDOWN ENTRY ===== */
+        .profile-dropdown-apikey {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            background: transparent;
+            color: #e2e8f0;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .profile-dropdown-apikey:hover {
+            background: #334155;
+        }
+
+        body.light-mode .profile-dropdown-apikey {
+            border-color: #cbd5e1;
+            color: #1e293b;
+        }
+
+        body.light-mode .profile-dropdown-apikey:hover {
+            background: #f1f5f9;
+        }
+
+        .api-key-modal-content {
+            max-width: 480px;
+        }
+
+        .api-key-intro {
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.55;
+            margin-bottom: 16px;
+        }
+
+        .api-key-intro a {
+            color: var(--accent-blue, #3b82f6);
+            text-decoration: underline;
+        }
+
+        .api-key-input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            background: #0f172a;
+            color: #e2e8f0;
+            font-size: 14px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            box-sizing: border-box;
+            margin-bottom: 6px;
+        }
+
+        .api-key-input:focus {
+            outline: none;
+            border-color: var(--accent-blue, #3b82f6);
+        }
+
+        .api-key-status {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 14px;
+            min-height: 16px;
+        }
+
+        .api-key-status.error { color: #ef4444; }
+        .api-key-status.success { color: #22c55e; }
+
+        .api-key-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .api-key-actions button {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .api-key-save {
+            background: var(--btn-gradient);
+            color: white;
+        }
+
+        .api-key-clear {
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #334155;
+        }
+
+        body.light-mode .api-key-intro,
+        body.light-mode .api-key-status {
+            color: #64748b;
+        }
+
+        body.light-mode .api-key-input {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #1e293b;
+        }
+
+        body.light-mode .api-key-clear {
+            border-color: #cbd5e1;
+            color: #475569;
+        }
+    </style>
+</head>
+<body>
+    <div class="pokedex">
+        <!-- Top strip with indicator lights -->
+        <div class="pokedex-top">
+            <div class="lens-big" id="lensHomeBtn" title="Home"></div>
+            <div class="indicator-lights">
+                <div class="light light-red"></div>
+                <div class="light light-yellow"></div>
+                <div class="light light-green"></div>
+            </div>
+            <div class="pokedex-top-right">
+                <button class="top-icon-btn" id="darkModeBtn" title="Toggle Dark Mode">&#9789;</button>
+                <button class="top-icon-btn" id="historyBtn" title="Search History">&#128220;</button>
+                <button class="top-icon-btn" id="favoritesBtn" title="Favorites">&#9733;</button>
+                <button class="top-icon-btn profile-btn" id="profileBtn" title="Profile / Login">
+                    <span id="profileIcon">&#128100;</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Screen -->
+        <div class="screen-frame">
+            <div class="screen" id="screen">
+                <!-- Idle state -->
+                <div class="screen-idle" id="screenIdle">
+                    <div class="pokeball-icon">&#9898;</div>
+                    <h2>PokeSearch</h2>
+                    <p>Snap a photo, upload an image, or paste a URL to identify Pokemon!</p>
+                </div>
+
+                <!-- Loading state -->
+                <div class="screen-loading" id="screenLoading">
+                    <div class="pokeball-spinner"></div>
+                    <p>Scanning Pokemon...</p>
+                </div>
+
+                <!-- Error state -->
+                <div class="screen-error" id="screenError">
+                    <div class="error-icon">&#9888;</div>
+                    <p id="errorText"></p>
+                </div>
+
+                <!-- Results: List view -->
+                <div class="results-list" id="resultsList"></div>
+
+                <!-- Results: Detail view -->
+                <div class="result-detail" id="resultDetail"></div>
+            </div>
+        </div>
+
+        <!-- Preview bar -->
+        <div class="preview-bar" id="previewBar">
+            <img id="previewThumb" alt="Preview">
+            <span class="preview-text">Image loaded</span>
+            <button class="preview-clear" id="clearPreview">Clear</button>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-area">
+            <div class="input-actions-row">
+                <!-- Camera button -->
+                <button class="action-circle-btn" id="openCameraBtn" title="Take Photo">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/>
+                        <path d="M9 2 7.17 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3.17L15 2H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
+                    </svg>
+                </button>
+
+                <!-- Upload (photo) button -->
+                <button class="action-circle-btn" id="uploadBtn" title="Upload from Device">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="none" stroke="white" stroke-width="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <path d="M21 15l-5-5L5 21"/>
+                    </svg>
+                    <input type="file" id="fileInput" accept="image/*">
+                </button>
+
+                <!-- Search button -->
+                <button class="search-btn" id="identifyBtn" disabled>SEARCH</button>
+            </div>
+
+            <div class="bottom-inputs">
+                <button class="paste-btn" id="pasteBtn" title="Paste from Clipboard (Ctrl+V)" tabindex="0">&#128203;</button>
+                <input type="text" class="url-input" id="urlInput" placeholder="Paste image URL here...">
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Modal -->
+    <div class="camera-modal" id="cameraModal">
+        <div class="camera-container">
+            <video id="cameraVideo" class="camera-video" autoplay playsinline></video>
+            <canvas id="cameraCanvas"></canvas>
+            <div class="camera-controls">
+                <button class="camera-btn capture-btn" id="captureBtn">Capture</button>
+                <button class="camera-btn close-camera-btn" id="closeCameraBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div class="modal" id="historyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Search History</h2>
+                <button class="close-modal" id="closeHistoryBtn">&#10005;</button>
+            </div>
+            <div id="historyContent"></div>
+        </div>
+    </div>
+
+    <!-- Favorites Modal -->
+    <div class="modal" id="favoritesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Favorites</h2>
+                <button class="close-modal" id="closeFavoritesBtn">&#10005;</button>
+            </div>
+            <div id="favoritesContent"></div>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div class="modal" id="authModal">
+        <div class="modal-content auth-modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="authTitle">Sign In</h2>
+                <button class="close-modal" id="closeAuthBtn">&#10005;</button>
+            </div>
+
+            <!-- SIGN IN -->
+            <form id="authSignInState" autocomplete="on">
+                <div class="auth-input-group">
+                    <input type="email" id="signInEmail" name="username" autocomplete="username" class="auth-email-input" placeholder="Email address">
+                    <input type="password" id="signInPassword" name="password" autocomplete="current-password" class="auth-email-input" placeholder="Password">
+                    <button type="submit" class="auth-send-btn" id="signInBtn">Sign In</button>
+                </div>
+                <a href="#" class="auth-forgot-link" id="showForgotLink">Forgot password?</a>
+                <p class="auth-error" id="signInError"></p>
+                <p class="auth-switch">Don't have an account? <a href="#" id="showSignUpLink">Sign Up</a></p>
+            </form>
+
+            <!-- FORGOT PASSWORD -->
+            <form id="authForgotPasswordState" style="display:none;" autocomplete="on">
+                <p class="auth-subtitle">Enter the email you signed up with. We'll send you a link to reset your password.</p>
+                <div class="auth-input-group">
+                    <input type="email" id="forgotEmail" name="username" autocomplete="username" class="auth-email-input" placeholder="Email address">
+                    <button type="submit" class="auth-send-btn" id="forgotSendBtn">Send Reset Link</button>
+                </div>
+                <p class="auth-error" id="forgotError"></p>
+                <p class="auth-switch"><a href="#" id="forgotBackLink">Back to Sign In</a></p>
+            </form>
+
+            <!-- SIGN UP Step 1: Email + Send OTP -->
+            <div id="authSignUpEmailState" style="display:none;">
+                <p class="auth-subtitle">Verify your email to create an account.</p>
+                <div class="auth-input-group">
+                    <input type="email" id="signUpEmail" class="auth-email-input" placeholder="Email address">
+                    <button class="auth-send-btn" id="sendOtpBtn">Send OTP Code</button>
+                </div>
+                <p class="auth-error" id="signUpEmailError"></p>
+                <p class="auth-switch">Already have an account? <a href="#" id="showSignInLink">Sign In</a></p>
+            </div>
+
+            <!-- SIGN UP Step 2: OTP Verification -->
+            <div id="authSignUpOtpState" style="display:none;">
+                <div class="auth-sent-icon">&#128274;</div>
+                <p class="auth-sent-msg">Enter the 6-digit code sent to<br><strong id="otpTargetEmail"></strong></p>
+                <div class="auth-input-group">
+                    <input type="text" id="otpCodeInput" class="auth-email-input otp-input" placeholder="Enter code" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+                    <button class="auth-send-btn" id="verifyOtpBtn">Verify Code</button>
+                </div>
+                <p class="auth-error" id="otpError"></p>
+                <div class="otp-footer">
+                    <button class="auth-back-btn" id="otpBackBtn">Back</button>
+                    <button class="auth-back-btn" id="otpResendBtn">Resend</button>
+                </div>
+            </div>
+
+            <!-- SIGN UP Step 3: Set Password -->
+            <form id="authSignUpPasswordState" style="display:none;" autocomplete="on">
+                <div class="auth-sent-icon">&#9989;</div>
+                <p class="auth-sent-msg">Email verified! Now set your password.</p>
+                <div class="auth-input-group">
+                    <input type="email" id="signUpEmailHidden" name="username" autocomplete="username" class="auth-email-input" readonly tabindex="-1" style="opacity:0.6;cursor:default;">
+                    <input type="password" id="signUpPassword" name="new-password" autocomplete="new-password" class="auth-email-input" placeholder="Choose a password (min 6 chars)">
+                    <input type="password" id="signUpPasswordConfirm" name="new-password-confirm" autocomplete="new-password" class="auth-email-input" placeholder="Confirm password">
+                    <button type="submit" class="auth-send-btn" id="createAccountBtn">Create Account</button>
+                </div>
+                <p class="auth-error" id="signUpPasswordError"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Profile Dropdown -->
+    <div class="profile-dropdown" id="profileDropdown">
+        <div class="profile-dropdown-email" id="profileDropdownEmail"></div>
+        <button class="profile-dropdown-apikey" id="apiKeyMenuBtn">&#128273; Gemini API Key</button>
+        <button class="profile-dropdown-signout" id="signOutBtn">Sign Out</button>
+    </div>
+
+    <!-- API Key Modal -->
+    <div class="modal" id="apiKeyModal">
+        <div class="modal-content api-key-modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Gemini API Key</h2>
+                <button class="close-modal" id="closeApiKeyBtn">&#10005;</button>
+            </div>
+            <p class="api-key-intro">
+                This app uses Google's Gemini API to identify Pokémon from images.
+                To keep the hosted version free, each visitor uses their own key.
+                Get a free one at
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>,
+                paste it below, and it'll be saved in your browser only.
+            </p>
+            <input type="password" class="api-key-input" id="apiKeyInput" placeholder="AIza..." autocomplete="off" spellcheck="false">
+            <div class="api-key-status" id="apiKeyStatus"></div>
+            <div class="api-key-actions">
+                <button class="api-key-clear" id="apiKeyClearBtn">Clear</button>
+                <button class="api-key-save" id="apiKeySaveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        // Gemini key resolution: CONFIG (set by self-hosters) wins; otherwise
+        // fall back to the user's own key stored in localStorage. The URL is
+        // built per-request so updates take effect without a page reload.
+        const GEMINI_MODEL_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent';
+        const USER_KEY_STORAGE = 'userGeminiKey';
+
+        function getGeminiKey() {
+            const fromConfig = (CONFIG.GEMINI_API_KEY || '').trim();
+            if (fromConfig) return fromConfig;
+            try { return (localStorage.getItem(USER_KEY_STORAGE) || '').trim(); }
+            catch (e) { return ''; }
+        }
+
+        function setUserGeminiKey(key) {
+            try {
+                if (key) localStorage.setItem(USER_KEY_STORAGE, key);
+                else localStorage.removeItem(USER_KEY_STORAGE);
+                return true;
+            } catch (e) { return false; }
+        }
+
+        function getGeminiUrl() {
+            return `${GEMINI_MODEL_URL}?key=${encodeURIComponent(getGeminiKey())}`;
+        }
+
+        // =============================================
+        // EMAILJS CONFIG (for OTP on sign-up only)
+        // =============================================
+        const EMAILJS_PUBLIC_KEY = CONFIG.EMAILJS_PUBLIC_KEY;
+        const EMAILJS_SERVICE_ID = CONFIG.EMAILJS_SERVICE_ID;
+        const EMAILJS_TEMPLATE_ID = CONFIG.EMAILJS_TEMPLATE_ID;
+        try { emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e) { console.warn('EmailJS not configured.', e); }
+
+        // =============================================
+        // FIREBASE CONFIG
+        // =============================================
+        const firebaseConfig = CONFIG.FIREBASE;
+
+        let firebaseAuth = null;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            firebaseAuth = firebase.auth();
+        } catch(e) { console.warn('Firebase not configured.', e); }
+
+        let currentUser = null;
+        let pendingOtp = null; // { code, email, expiresAt }
+        let verifiedSignUpEmail = null; // email verified via OTP, awaiting password
+        let currentImage = null;
+        let currentPokemonData = [];
+        let cameraStream = null;
+
+        // DOM refs
+        const screen = document.getElementById('screen');
+        const screenIdle = document.getElementById('screenIdle');
+        const screenLoading = document.getElementById('screenLoading');
+        const screenError = document.getElementById('screenError');
+        const errorText = document.getElementById('errorText');
+        const resultsList = document.getElementById('resultsList');
+        const resultDetail = document.getElementById('resultDetail');
+        const previewBar = document.getElementById('previewBar');
+        const previewThumb = document.getElementById('previewThumb');
+        const clearPreview = document.getElementById('clearPreview');
+        const fileInput = document.getElementById('fileInput');
+        const urlInput = document.getElementById('urlInput');
+        const identifyBtn = document.getElementById('identifyBtn');
+        const openCameraBtn = document.getElementById('openCameraBtn');
+        const cameraModal = document.getElementById('cameraModal');
+        const cameraVideo = document.getElementById('cameraVideo');
+        const cameraCanvas = document.getElementById('cameraCanvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const closeCameraBtn = document.getElementById('closeCameraBtn');
+        const pasteBtn = document.getElementById('pasteBtn');
+        const darkModeBtn = document.getElementById('darkModeBtn');
+        const historyBtn = document.getElementById('historyBtn');
+        const favoritesBtn = document.getElementById('favoritesBtn');
+        const historyModal = document.getElementById('historyModal');
+        const favoritesModal = document.getElementById('favoritesModal');
+        const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+        const closeFavoritesBtn = document.getElementById('closeFavoritesBtn');
+        const profileBtn = document.getElementById('profileBtn');
+        const profileIcon = document.getElementById('profileIcon');
+        const profileDropdown = document.getElementById('profileDropdown');
+        const profileDropdownEmail = document.getElementById('profileDropdownEmail');
+        const signOutBtn = document.getElementById('signOutBtn');
+        const apiKeyMenuBtn = document.getElementById('apiKeyMenuBtn');
+        const apiKeyModal = document.getElementById('apiKeyModal');
+        const closeApiKeyBtn = document.getElementById('closeApiKeyBtn');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const apiKeyStatus = document.getElementById('apiKeyStatus');
+        const apiKeySaveBtn = document.getElementById('apiKeySaveBtn');
+        const apiKeyClearBtn = document.getElementById('apiKeyClearBtn');
+        const authModal = document.getElementById('authModal');
+        const authTitle = document.getElementById('authTitle');
+        const closeAuthBtn = document.getElementById('closeAuthBtn');
+        // Sign In refs
+        const authSignInState = document.getElementById('authSignInState');
+        const signInEmail = document.getElementById('signInEmail');
+        const signInPassword = document.getElementById('signInPassword');
+        const signInBtn = document.getElementById('signInBtn');
+        const signInError = document.getElementById('signInError');
+        const showSignUpLink = document.getElementById('showSignUpLink');
+        // Sign Up Step 1 refs
+        const authSignUpEmailState = document.getElementById('authSignUpEmailState');
+        const signUpEmail = document.getElementById('signUpEmail');
+        const sendOtpBtn = document.getElementById('sendOtpBtn');
+        const signUpEmailError = document.getElementById('signUpEmailError');
+        const showSignInLink = document.getElementById('showSignInLink');
+        // Sign Up Step 2 refs
+        const authSignUpOtpState = document.getElementById('authSignUpOtpState');
+        const otpTargetEmail = document.getElementById('otpTargetEmail');
+        const otpCodeInput = document.getElementById('otpCodeInput');
+        const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+        const otpError = document.getElementById('otpError');
+        const otpBackBtn = document.getElementById('otpBackBtn');
+        const otpResendBtn = document.getElementById('otpResendBtn');
+        // Sign Up Step 3 refs
+        const authSignUpPasswordState = document.getElementById('authSignUpPasswordState');
+        const signUpPassword = document.getElementById('signUpPassword');
+        const signUpPasswordConfirm = document.getElementById('signUpPasswordConfirm');
+        // Forgot password
+        const authForgotPasswordState = document.getElementById('authForgotPasswordState');
+        const forgotEmail = document.getElementById('forgotEmail');
+        const forgotSendBtn = document.getElementById('forgotSendBtn');
+        const forgotError = document.getElementById('forgotError');
+        const showForgotLink = document.getElementById('showForgotLink');
+        const forgotBackLink = document.getElementById('forgotBackLink');
+        const createAccountBtn = document.getElementById('createAccountBtn');
+        const signUpPasswordError = document.getElementById('signUpPasswordError');
+
+        // --- Screen state management ---
+        function showScreen(state) {
+            screenIdle.style.display = 'none';
+            screenLoading.classList.remove('show');
+            screenError.classList.remove('show');
+            resultsList.classList.remove('show');
+            resultDetail.classList.remove('show');
+
+            if (state === 'idle') screenIdle.style.display = 'flex';
+            else if (state === 'loading') screenLoading.classList.add('show');
+            else if (state === 'error') screenError.classList.add('show');
+            else if (state === 'list') resultsList.classList.add('show');
+            else if (state === 'detail') resultDetail.classList.add('show');
+
+            screen.scrollTop = 0;
+        }
+
+        function showError(msg) {
+            errorText.textContent = msg;
+            showScreen('error');
+        }
+
+        // --- Preview bar ---
+        function setPreview(src) {
+            previewThumb.src = src;
+            previewBar.classList.add('show');
+        }
+
+        clearPreview.addEventListener('click', () => {
+            currentImage = null;
+            previewBar.classList.remove('show');
+            identifyBtn.disabled = true;
+            urlInput.value = '';
+            fileInput.value = '';
+            showScreen('idle');
+        });
+
+        // --- Image input methods ---
+
+        // 1. File upload
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    currentImage = ev.target.result;
+                    setPreview(currentImage);
+                    identifyBtn.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 2. URL input
+        urlInput.addEventListener('input', (e) => {
+            const url = e.target.value.trim();
+            if (url) {
+                currentImage = url;
+                setPreview(url);
+                identifyBtn.disabled = false;
+            }
+        });
+
+        // 3. Paste (clipboard)
+        pasteBtn.addEventListener('click', () => pasteBtn.focus());
+
+        function handlePaste(e) {
+            const items = e.clipboardData.items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    const blob = item.getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        currentImage = ev.target.result;
+                        setPreview(currentImage);
+                        identifyBtn.disabled = false;
+                    };
+                    reader.readAsDataURL(blob);
+                    e.preventDefault();
+                    break;
+                }
+            }
+        }
+
+        pasteBtn.addEventListener('paste', handlePaste);
+        document.addEventListener('paste', handlePaste);
+
+        // 4. Camera
+        openCameraBtn.addEventListener('click', async () => {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+                cameraVideo.srcObject = cameraStream;
+                cameraModal.classList.add('show');
+            } catch (err) {
+                showError('Could not access camera. Check permissions.');
+            }
+        });
+
+        captureBtn.addEventListener('click', () => {
+            cameraCanvas.width = cameraVideo.videoWidth;
+            cameraCanvas.height = cameraVideo.videoHeight;
+            const ctx = cameraCanvas.getContext('2d');
+            ctx.drawImage(cameraVideo, 0, 0);
+            const imageData = cameraCanvas.toDataURL('image/jpeg');
+            currentImage = imageData;
+            setPreview(imageData);
+            identifyBtn.disabled = false;
+            stopCamera();
+        });
+
+        closeCameraBtn.addEventListener('click', stopCamera);
+
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(t => t.stop());
+                cameraStream = null;
+            }
+            cameraModal.classList.remove('show');
+        }
+
+        cameraModal.addEventListener('click', (e) => {
+            if (e.target === cameraModal) stopCamera();
+        });
+
+        // --- Search / Identify ---
+        identifyBtn.addEventListener('click', async () => {
+            if (!currentImage) return;
+
+            if (!getGeminiKey()) {
+                openApiKeyModal('You need a Gemini API key to identify Pokémon. Paste one here to get started.');
+                return;
+            }
+
+            showScreen('loading');
+            identifyBtn.disabled = true;
+
+            try {
+                let base64Image;
+
+                if (currentImage.startsWith('http')) {
+                    const response = await fetch(currentImage);
+                    const blob = await response.blob();
+                    base64Image = await blobToBase64(blob);
+                } else {
+                    base64Image = currentImage.split(',')[1];
+                }
+
+                const requestBody = {
+                    contents: [{
+                        parts: [
+                            {
+                                text: "Look at this image and determine which Pokemon it most closely resembles. Even if it's not actually a Pokemon, find the closest matching Pokemon(s) based on appearance, colors, features, or characteristics. If multiple Pokemon could be a match, list up to 3 possibilities with confidence percentages. Format your response EXACTLY like this:\npokemon_name: 70%\nanother_pokemon: 20%\nthird_pokemon: 10%\n\nIf only one Pokemon matches, just give that one with 100%. Use only lowercase Pokemon names with hyphens if needed (e.g., 'mr-mime'). Do not include any other text or explanation."
+                            },
+                            {
+                                inline_data: {
+                                    mime_type: "image/jpeg",
+                                    data: base64Image
+                                }
+                            }
+                        ]
+                    }]
+                };
+
+                const geminiResponse = await fetch(getGeminiUrl(), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!geminiResponse.ok) {
+                    const errData = await geminiResponse.json().catch(() => ({}));
+                    // 400 with API_KEY_INVALID, 401, 403 → key problem, re-prompt
+                    const status = geminiResponse.status;
+                    const msg = errData.error?.message || '';
+                    const isKeyError = status === 401 || status === 403 ||
+                        /api[_ ]?key|api key not valid|permission/i.test(msg);
+                    if (isKeyError) {
+                        identifyBtn.disabled = false;
+                        showScreen('idle');
+                        openApiKeyModal('Your Gemini key was rejected (' + (msg || 'invalid or out of quota') + '). Update it below.', true);
+                        return;
+                    }
+                    throw new Error(msg || 'API request failed');
+                }
+
+                const geminiData = await geminiResponse.json();
+                const aiResponse = geminiData.candidates[0].content.parts[0].text.trim();
+                const matches = parseMatches(aiResponse);
+                await fetchAllPokemonData(matches);
+
+            } catch (err) {
+                showError(`Error: ${err.message}`);
+            } finally {
+                identifyBtn.disabled = false;
+            }
+        });
+
+        function parseMatches(aiResponse) {
+            const lines = aiResponse.trim().split('\n').filter(l => l.trim());
+            const matches = [];
+            for (let line of lines) {
+                const match = line.match(/^([a-z0-9-]+):\s*(\d+)%/i);
+                if (match) {
+                    matches.push({ name: match[1].toLowerCase().trim(), confidence: parseInt(match[2]) });
+                }
+            }
+            if (matches.length === 0) {
+                const first = aiResponse.split(/[\s\n,.!?:]/)[0].replace(/[^a-z-]/gi, '').toLowerCase();
+                if (first) matches.push({ name: first, confidence: 100 });
+            }
+            return matches;
+        }
+
+        async function fetchAllPokemonData(matches) {
+            const allData = [];
+            for (let match of matches) {
+                try {
+                    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${match.name}`);
+                    if (!res.ok) continue;
+                    const pokemon = await res.json();
+                    const specRes = await fetch(pokemon.species.url);
+                    const species = await specRes.json();
+                    const flavorEntry = species.flavor_text_entries.find(e => e.language.name === 'en');
+                    const description = flavorEntry ? flavorEntry.flavor_text.replace(/\f/g, ' ') : 'No description available.';
+                    const data = { pokemon, species, description, confidence: match.confidence };
+                    allData.push(data);
+                } catch (err) {
+                    console.error(`Failed to fetch ${match.name}:`, err);
+                }
+            }
+            if (allData.length === 0) {
+                showError('Could not fetch Pokemon data.');
+                return;
+            }
+            currentPokemonData = allData;
+            saveToHistory(allData, currentImage);
+
+            // If single result, go straight to detail
+            if (allData.length === 1) {
+                showDetailView(0);
+            } else {
+                showListView(allData);
+            }
+        }
+
+        // --- List view ---
+        function showListView(allData) {
+            let html = `<div class="results-header">Found ${allData.length} Matches</div>`;
+            allData.forEach((data, i) => {
+                const types = data.pokemon.types.map(t => t.type.name);
+                const sprite = data.pokemon.sprites.other['official-artwork'].front_default || data.pokemon.sprites.front_default;
+                html += `
+                    <div class="result-list-item" onclick="showDetailView(${i})">
+                        <div class="list-sprite"><img src="${sprite}" alt="${data.pokemon.name}"></div>
+                        <div class="list-info">
+                            <div class="list-name">${data.pokemon.name}</div>
+                            <div class="list-sub">
+                                <span class="list-id">#${String(data.pokemon.id).padStart(4, '0')}</span>
+                                ${types.map(t => `<span class="list-type-badge type-${t}">${t}</span>`).join('')}
+                            </div>
+                        </div>
+                        <div class="list-confidence">${data.confidence}%</div>
+                        <div class="list-arrow">&#9654;</div>
+                    </div>
+                `;
+            });
+            resultsList.innerHTML = html;
+            showScreen('list');
+        }
+
+        // --- Detail view ---
+        function showDetailView(index) {
+            const data = currentPokemonData[index];
+            const p = data.pokemon;
+            const s = data.species;
+            const types = p.types.map(t => t.type.name);
+            const sprite = p.sprites.other['official-artwork'].front_default || p.sprites.front_default;
+
+            const genMap = {
+                'generation-i': { name: 'Kanto', gen: 'I' },
+                'generation-ii': { name: 'Johto', gen: 'II' },
+                'generation-iii': { name: 'Hoenn', gen: 'III' },
+                'generation-iv': { name: 'Sinnoh', gen: 'IV' },
+                'generation-v': { name: 'Unova', gen: 'V' },
+                'generation-vi': { name: 'Kalos', gen: 'VI' },
+                'generation-vii': { name: 'Alola', gen: 'VII' },
+                'generation-viii': { name: 'Galar', gen: 'VIII' },
+                'generation-ix': { name: 'Paldea', gen: 'IX' }
+            };
+
+            const region = genMap[s.generation.name] || { name: 'Unknown', gen: '?' };
+            const games = p.game_indices.map(g => g.version.name);
+            const favorited = isFavorited(p.id);
+            const showBack = currentPokemonData.length > 1;
+
+            const statColors = {
+                'hp': 'stat-hp',
+                'attack': 'stat-attack',
+                'defense': 'stat-defense',
+                'special-attack': 'stat-special-attack',
+                'special-defense': 'stat-special-defense',
+                'speed': 'stat-speed'
+            };
+
+            let html = '';
+
+            if (showBack) {
+                html += `<div class="detail-back-bar" onclick="showListView(currentPokemonData)"><span>&#9664; Back to results</span></div>`;
+            }
+
+            html += `
+                <div class="detail-hero">
+                    <img src="${sprite}" alt="${p.name}">
+                    <div class="detail-name">${p.name}</div>
+                    <div class="detail-id">#${String(p.id).padStart(4, '0')}</div>
+                    <div class="detail-types">
+                        ${types.map(t => `<span class="detail-type-badge type-${t}">${t}</span>`).join('')}
+                    </div>
+                    <div class="detail-confidence-bar">
+                        <span class="conf-label">Match:</span>
+                        <span class="conf-value">${data.confidence}%</span>
+                    </div>
+                </div>
+
+                <div class="detail-sections">
+                    <div class="detail-section">
+                        <div class="detail-section-title">Physical</div>
+                        <div class="detail-info-grid">
+                            <div class="detail-info-box">
+                                <div class="detail-info-label">Height</div>
+                                <div class="detail-info-val">${(p.height / 10).toFixed(1)}m</div>
+                            </div>
+                            <div class="detail-info-box">
+                                <div class="detail-info-label">Weight</div>
+                                <div class="detail-info-val">${(p.weight / 10).toFixed(1)}kg</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-section-title">Base Stats</div>
+                        ${p.stats.map(stat => {
+                            const name = stat.stat.name;
+                            const val = stat.base_stat;
+                            const pct = (val / 255) * 100;
+                            const colorClass = statColors[name] || 'stat-hp';
+                            const displayName = name.replace('special-', 'sp. ').replace('-', ' ').toUpperCase();
+                            return `
+                                <div class="detail-stat-row">
+                                    <div class="detail-stat-name">${displayName}</div>
+                                    <div class="detail-stat-bar-bg">
+                                        <div class="detail-stat-bar ${colorClass}" style="width:${pct}%"></div>
+                                    </div>
+                                    <div class="detail-stat-val">${val}</div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-section-title">Abilities</div>
+                        <div class="detail-abilities-list">
+                            ${p.abilities.map(a => `<span class="detail-ability-chip">${a.ability.name.replace('-', ' ')}</span>`).join('')}
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-section-title">Origin</div>
+                        <div class="detail-region-name">${region.name}</div>
+                        <div class="detail-generation">Generation ${region.gen}</div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-section-title">Description</div>
+                        <div class="detail-desc-text">${data.description}</div>
+                    </div>
+
+                    ${games.length > 0 ? `
+                    <div class="detail-section">
+                        <div class="detail-section-title">Appears In (${games.length} games)</div>
+                        <div class="detail-games-grid">
+                            ${games.map(g => `<span class="detail-game-chip">${g.replace('-', ' ')}</span>`).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <div class="detail-actions">
+                    <button class="detail-action-btn" onclick="handleFavorite(event, ${p.id}, ${index})">
+                        ${!isLoggedIn() ? '&#128274; Sign in to Favorite' : (favorited ? '&#9733; Favorited' : '&#9734; Favorite')}
+                    </button>
+                    <button class="detail-action-btn" onclick="handleShare(event, ${index})">
+                        &#128228; Share Card
+                    </button>
+                </div>
+            `;
+
+            resultDetail.innerHTML = html;
+            showScreen('detail');
+        }
+
+        // --- Dark Mode / Light Mode ---
+        function initDarkMode() {
+            const isLight = localStorage.getItem('pokedexLightMode') === 'true';
+            if (isLight) {
+                document.body.classList.add('light-mode');
+                darkModeBtn.innerHTML = '&#9728;'; // sun
+            } else {
+                darkModeBtn.innerHTML = '&#9789;'; // moon
+            }
+        }
+
+        darkModeBtn.addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            localStorage.setItem('pokedexLightMode', isLight);
+            darkModeBtn.innerHTML = isLight ? '&#9728;' : '&#9789;';
+        });
+
+        // --- Home button (blue lens) ---
+        document.getElementById('lensHomeBtn').addEventListener('click', () => {
+            currentImage = null;
+            currentPokemonData = [];
+            previewBar.classList.remove('show');
+            identifyBtn.disabled = true;
+            urlInput.value = '';
+            fileInput.value = '';
+            showScreen('idle');
+        });
+
+        // --- History ---
+        function saveToHistory(allPokemonData, uploadedImage) {
+            if (!isLoggedIn()) return;
+            const key = getStorageKey('pokemonHistory');
+            let history = JSON.parse(localStorage.getItem(key) || '[]');
+
+            // Shrink uploaded image to thumbnail to avoid localStorage bloat
+            let thumbPromise;
+            if (uploadedImage && !uploadedImage.startsWith('http')) {
+                thumbPromise = shrinkImage(uploadedImage, 120);
+            } else {
+                thumbPromise = Promise.resolve(uploadedImage || null);
+            }
+
+            thumbPromise.then(thumb => {
+                const matchNames = allPokemonData.map(d => ({
+                    name: d.pokemon.name,
+                    id: d.pokemon.id,
+                    sprite: d.pokemon.sprites.other['official-artwork'].front_default,
+                    confidence: d.confidence
+                }));
+
+                history.unshift({
+                    matches: matchNames,
+                    uploadedImage: thumb,
+                    timestamp: Date.now()
+                });
+                history = history.slice(0, 20);
+                localStorage.setItem(key, JSON.stringify(history));
+            });
+        }
+
+        function shrinkImage(dataUrl, maxSize) {
+            return new Promise(resolve => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+                    canvas.width = img.width * scale;
+                    canvas.height = img.height * scale;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.6));
+                };
+                img.src = dataUrl;
+            });
+        }
+
+        function showHistory() {
+            const key = getStorageKey('pokemonHistory');
+            const history = JSON.parse(localStorage.getItem(key) || '[]');
+            const content = document.getElementById('historyContent');
+            if (history.length === 0) {
+                content.innerHTML = '<div class="empty-state">No search history yet.</div>';
+            } else {
+                content.innerHTML = `<div class="history-grid">${history.map((item, idx) => {
+                    // Support both old format (single pokemon) and new format (matches array + uploaded image)
+                    const displayImg = item.uploadedImage || (item.matches ? item.matches[0].sprite : item.sprite);
+                    const displayName = item.matches ? item.matches.map(m => m.name).join(', ') : item.name;
+                    const displayConf = item.matches ? item.matches[0].confidence : item.confidence;
+                    return `
+                    <div class="history-item" onclick="openHistoryEntry(${idx})">
+                        <img src="${displayImg}" class="history-sprite" alt="${displayName}" style="${item.uploadedImage ? 'border-radius:8px;object-fit:cover;' : ''}">
+                        <div class="history-name">${displayName}</div>
+                        <div class="history-confidence">${displayConf}% match</div>
+                    </div>`;
+                }).join('')}</div>`;
+            }
+            historyModal.classList.add('show');
+        }
+
+        async function openHistoryEntry(idx) {
+            const key = getStorageKey('pokemonHistory');
+            const history = JSON.parse(localStorage.getItem(key) || '[]');
+            const entry = history[idx];
+            if (!entry) return;
+
+            historyModal.classList.remove('show');
+            showScreen('loading');
+
+            try {
+                // Support old format
+                const matchList = entry.matches || [{ name: entry.name, confidence: entry.confidence }];
+                const allData = [];
+                for (const m of matchList) {
+                    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${m.name}`);
+                    if (!res.ok) continue;
+                    const pokemon = await res.json();
+                    const specRes = await fetch(pokemon.species.url);
+                    const species = await specRes.json();
+                    const flavorEntry = species.flavor_text_entries.find(e => e.language.name === 'en');
+                    const description = flavorEntry ? flavorEntry.flavor_text.replace(/\f/g, ' ') : 'No description available.';
+                    allData.push({ pokemon, species, description, confidence: m.confidence });
+                }
+                if (allData.length === 0) {
+                    showError('Could not load Pokemon data.');
+                    return;
+                }
+                currentPokemonData = allData;
+                if (allData.length === 1) {
+                    showDetailView(0);
+                } else {
+                    showListView(allData);
+                }
+            } catch (err) {
+                showError('Could not load history entry.');
+            }
+        }
+
+        historyBtn.addEventListener('click', () => {
+            if (!isLoggedIn()) { openAuthModal(); return; }
+            showHistory();
+        });
+        closeHistoryBtn.addEventListener('click', () => historyModal.classList.remove('show'));
+        historyModal.addEventListener('click', (e) => { if (e.target === historyModal) historyModal.classList.remove('show'); });
+
+        // --- Favorites ---
+        function toggleFavorite(pokemonData) {
+            if (!isLoggedIn()) { openAuthModal(); return false; }
+            const key = getStorageKey('pokemonFavorites');
+            let fav = JSON.parse(localStorage.getItem(key) || '[]');
+            const idx = fav.findIndex(f => f.id === pokemonData.pokemon.id);
+            if (idx > -1) {
+                fav.splice(idx, 1);
+            } else {
+                fav.push({
+                    name: pokemonData.pokemon.name,
+                    id: pokemonData.pokemon.id,
+                    sprite: pokemonData.pokemon.sprites.other['official-artwork'].front_default,
+                    types: pokemonData.pokemon.types.map(t => t.type.name)
+                });
+            }
+            localStorage.setItem(key, JSON.stringify(fav));
+            return idx === -1;
+        }
+
+        function isFavorited(pokemonId) {
+            if (!isLoggedIn()) return false;
+            const key = getStorageKey('pokemonFavorites');
+            const fav = JSON.parse(localStorage.getItem(key) || '[]');
+            return fav.some(f => f.id === pokemonId);
+        }
+
+        function showFavorites() {
+            const key = getStorageKey('pokemonFavorites');
+            const fav = JSON.parse(localStorage.getItem(key) || '[]');
+            const content = document.getElementById('favoritesContent');
+            if (fav.length === 0) {
+                content.innerHTML = '<div class="empty-state">No favorites yet.</div>';
+            } else {
+                content.innerHTML = `<div class="favorites-grid">${fav.map((item, i) => `
+                    <div class="history-item" onclick="openFavoriteDetail('${item.name}')">
+                        <img src="${item.sprite}" class="history-sprite" alt="${item.name}">
+                        <div class="history-name">${item.name}</div>
+                        <div class="compact-types">
+                            ${item.types.map(t => `<span class="list-type-badge type-${t}">${t}</span>`).join('')}
+                        </div>
+                    </div>
+                `).join('')}</div>`;
+            }
+            favoritesModal.classList.add('show');
+        }
+
+        async function openFavoriteDetail(pokemonName) {
+            favoritesModal.classList.remove('show');
+            showScreen('loading');
+            try {
+                const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonName}`);
+                if (!res.ok) throw new Error('Pokemon not found');
+                const pokemon = await res.json();
+                const specRes = await fetch(pokemon.species.url);
+                const species = await specRes.json();
+                const flavorEntry = species.flavor_text_entries.find(e => e.language.name === 'en');
+                const description = flavorEntry ? flavorEntry.flavor_text.replace(/\f/g, ' ') : 'No description available.';
+                currentPokemonData = [{ pokemon, species, description, confidence: 100 }];
+                showDetailView(0);
+            } catch (err) {
+                showError('Could not load Pokemon details.');
+            }
+        }
+
+        favoritesBtn.addEventListener('click', () => {
+            if (!isLoggedIn()) { openAuthModal(); return; }
+            showFavorites();
+        });
+        closeFavoritesBtn.addEventListener('click', () => favoritesModal.classList.remove('show'));
+        favoritesModal.addEventListener('click', (e) => { if (e.target === favoritesModal) favoritesModal.classList.remove('show'); });
+
+        // --- Favorite & Share handlers ---
+        function handleFavorite(event, pokemonId, dataIndex) {
+            event.stopPropagation();
+            const data = currentPokemonData[dataIndex];
+            const isFav = toggleFavorite(data);
+            // Re-render detail to update button
+            showDetailView(dataIndex);
+        }
+
+        function handleShare(event, dataIndex) {
+            event.stopPropagation();
+            shareCard(currentPokemonData[dataIndex]);
+        }
+
+        async function shareCard(pokemonData) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 600;
+            canvas.height = 800;
+            const ctx = canvas.getContext('2d');
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, 800);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 600, 800);
+
+            ctx.fillStyle = 'white';
+            roundRect(ctx, 40, 40, 520, 720, 20);
+            ctx.fill();
+
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.src = pokemonData.pokemon.sprites.other['official-artwork'].front_default;
+            await new Promise(resolve => { img.onload = () => { ctx.drawImage(img, 150, 80, 300, 300); resolve(); }; });
+
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(pokemonData.pokemon.name.toUpperCase(), 300, 430);
+
+            ctx.font = '32px Arial';
+            ctx.fillStyle = '#11998e';
+            ctx.fillText(`${pokemonData.confidence}% Match`, 300, 480);
+
+            ctx.font = '24px Arial';
+            ctx.fillStyle = '#7f8c8d';
+            ctx.fillText(`#${String(pokemonData.pokemon.id).padStart(4, '0')}`, 300, 520);
+
+            const types = pokemonData.pokemon.types.map(t => t.type.name);
+            ctx.font = 'bold 20px Arial';
+            const typeY = 570;
+            const spacing = 120;
+            const startX = 300 - (types.length - 1) * spacing / 2;
+            types.forEach((type, i) => {
+                const x = startX + i * spacing;
+                ctx.fillStyle = getTypeColor(type);
+                roundRect(ctx, x - 50, typeY - 20, 100, 40, 20);
+                ctx.fill();
+                ctx.fillStyle = 'white';
+                ctx.fillText(type.toUpperCase(), x, typeY + 5);
+            });
+
+            ctx.fillStyle = '#999';
+            ctx.font = '18px Arial';
+            ctx.fillText('Created with PokeSearch', 300, 730);
+
+            const link = document.createElement('a');
+            link.download = `${pokemonData.pokemon.name}-pokesearch.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function roundRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+        }
+
+        function getTypeColor(type) {
+            const colors = {
+                normal: '#A8A878', fire: '#F08030', water: '#6890F0',
+                electric: '#F8D030', grass: '#78C850', ice: '#98D8D8',
+                fighting: '#C03028', poison: '#A040A0', ground: '#E0C068',
+                flying: '#A890F0', psychic: '#F85888', bug: '#A8B820',
+                rock: '#B8A038', ghost: '#705898', dragon: '#7038F8',
+                dark: '#705848', steel: '#B8B8D0', fairy: '#EE99AC'
+            };
+            return colors[type] || '#777';
+        }
+
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        // --- Auth helpers ---
+        function isLoggedIn() { return !!currentUser; }
+
+        function getStorageKey(base) {
+            return currentUser ? base + '_' + currentUser.uid : base;
+        }
+
+        function updateProfileUI() {
+            if (currentUser) {
+                const initial = (currentUser.email || '?')[0];
+                profileIcon.innerHTML = `<span class="profile-initial">${initial}</span>`;
+                profileBtn.title = currentUser.email;
+            } else {
+                profileIcon.innerHTML = '&#128100;';
+                profileBtn.title = 'Profile / Login';
+            }
+        }
+
+        // --- Auth modal state switching ---
+        function hideAllAuthStates() {
+            authSignInState.style.display = 'none';
+            authSignUpEmailState.style.display = 'none';
+            authSignUpOtpState.style.display = 'none';
+            authSignUpPasswordState.style.display = 'none';
+            authForgotPasswordState.style.display = 'none';
+        }
+
+        function openAuthModal(mode) {
+            hideAllAuthStates();
+            if (mode === 'signup') {
+                authTitle.textContent = 'Sign Up';
+                authSignUpEmailState.style.display = '';
+                signUpEmail.value = '';
+                signUpEmailError.textContent = '';
+            } else if (mode === 'forgot') {
+                authTitle.textContent = 'Reset Password';
+                authForgotPasswordState.style.display = '';
+                // Pre-fill with whatever the user typed on the sign-in screen
+                forgotEmail.value = signInEmail.value.trim();
+                forgotError.textContent = '';
+                forgotError.classList.remove('auth-sent-msg');
+                forgotSendBtn.disabled = false;
+                forgotSendBtn.textContent = 'Send Reset Link';
+            } else {
+                authTitle.textContent = 'Sign In';
+                authSignInState.style.display = '';
+                signInEmail.value = '';
+                signInPassword.value = '';
+                signInError.textContent = '';
+            }
+            authModal.classList.add('show');
+        }
+
+        // Switch between Sign In / Sign Up / Forgot
+        showSignUpLink.addEventListener('click', (e) => { e.preventDefault(); openAuthModal('signup'); });
+        showSignInLink.addEventListener('click', (e) => { e.preventDefault(); openAuthModal('signin'); });
+        showForgotLink.addEventListener('click', (e) => { e.preventDefault(); openAuthModal('forgot'); });
+        forgotBackLink.addEventListener('click', (e) => { e.preventDefault(); openAuthModal('signin'); });
+
+        // Close auth modal
+        closeAuthBtn.addEventListener('click', () => authModal.classList.remove('show'));
+        authModal.addEventListener('click', (e) => {
+            if (e.target === authModal) authModal.classList.remove('show');
+        });
+
+        // --- OTP helpers ---
+        function generateOtp() {
+            return String(Math.floor(100000 + Math.random() * 900000));
+        }
+
+        function sendOtpToEmail(email) {
+            const code = generateOtp();
+            pendingOtp = { code, email, expiresAt: Date.now() + 5 * 60 * 1000 };
+            return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                to_email: email, email: email,
+                otp_code: code, otp: code, code: code, passcode: code, message: code
+            });
+        }
+
+        // --- FORGOT PASSWORD (Firebase sends the reset email itself) ---
+        authForgotPasswordState.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = forgotEmail.value.trim();
+            forgotError.classList.remove('auth-sent-msg');
+            forgotError.style.color = '';
+            forgotError.textContent = '';
+
+            if (!email || !email.includes('@')) { forgotError.textContent = 'Enter a valid email.'; return; }
+            if (!firebaseAuth) { forgotError.textContent = 'Firebase not configured.'; return; }
+
+            forgotSendBtn.disabled = true;
+            forgotSendBtn.textContent = 'Sending...';
+            firebaseAuth.sendPasswordResetEmail(email)
+                .then(() => {
+                    forgotSendBtn.textContent = 'Sent';
+                    forgotError.style.color = '#22c55e';
+                    forgotError.textContent = 'Check your inbox (and spam folder) for the reset link.';
+                })
+                .catch(err => {
+                    forgotSendBtn.disabled = false;
+                    forgotSendBtn.textContent = 'Send Reset Link';
+                    if (err.code === 'auth/user-not-found') {
+                        forgotError.textContent = 'No account exists with that email.';
+                    } else if (err.code === 'auth/invalid-email') {
+                        forgotError.textContent = 'That email address is not valid.';
+                    } else if (err.code === 'auth/too-many-requests') {
+                        forgotError.textContent = 'Too many attempts. Try again in a few minutes.';
+                    } else {
+                        forgotError.textContent = err.message;
+                    }
+                });
+        });
+
+        // --- SIGN IN (email + password via Firebase) ---
+        authSignInState.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = signInEmail.value.trim();
+            const password = signInPassword.value;
+            signInError.textContent = '';
+
+            if (!email || !email.includes('@')) { signInError.textContent = 'Enter a valid email.'; return; }
+            if (!password) { signInError.textContent = 'Enter your password.'; return; }
+            if (!firebaseAuth) { signInError.textContent = 'Firebase not configured. See code comments.'; return; }
+
+            signInBtn.disabled = true;
+            firebaseAuth.signInWithEmailAndPassword(email, password)
+                .then(() => {
+                    // Page reload triggers Chrome's "Save password?" prompt
+                    // Firebase Auth persists the session, so user stays logged in
+                    window.location.reload();
+                })
+                .catch(err => {
+                    signInBtn.disabled = false;
+                    if (err.code === 'auth/user-not-found') {
+                        signInError.textContent = 'No account with this email. Sign up first.';
+                    } else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+                        signInError.textContent = 'Incorrect password.';
+                    } else {
+                        signInError.textContent = err.message;
+                    }
+                });
+        });
+
+        // --- SIGN UP Step 1: Send OTP to verify email ---
+        sendOtpBtn.addEventListener('click', () => {
+            const email = signUpEmail.value.trim();
+            signUpEmailError.textContent = '';
+            if (!email || !email.includes('@')) { signUpEmailError.textContent = 'Enter a valid email.'; return; }
+
+            sendOtpBtn.disabled = true;
+            sendOtpToEmail(email)
+                .then(() => {
+                    sendOtpBtn.disabled = false;
+                    hideAllAuthStates();
+                    authTitle.textContent = 'Verify Email';
+                    authSignUpOtpState.style.display = '';
+                    otpTargetEmail.textContent = email;
+                    otpCodeInput.value = '';
+                    otpError.textContent = '';
+                })
+                .catch(err => {
+                    sendOtpBtn.disabled = false;
+                    signUpEmailError.textContent = err?.text || 'Failed to send OTP.';
+                });
+        });
+
+        // --- SIGN UP Step 2: Verify OTP ---
+        verifyOtpBtn.addEventListener('click', () => {
+            const entered = otpCodeInput.value.trim();
+            otpError.textContent = '';
+
+            if (!entered || entered.length !== 6) { otpError.textContent = 'Enter the 6-digit code.'; return; }
+            if (!pendingOtp) { otpError.textContent = 'No OTP pending. Please resend.'; return; }
+            if (Date.now() > pendingOtp.expiresAt) { otpError.textContent = 'Code expired. Resend.'; pendingOtp = null; return; }
+            if (entered !== pendingOtp.code) { otpError.textContent = 'Incorrect code. Try again.'; return; }
+
+            // OTP valid — move to password step
+            verifiedSignUpEmail = pendingOtp.email;
+            pendingOtp = null;
+            hideAllAuthStates();
+            authTitle.textContent = 'Create Password';
+            authSignUpPasswordState.style.display = '';
+            document.getElementById('signUpEmailHidden').value = verifiedSignUpEmail;
+            signUpPassword.value = '';
+            signUpPasswordConfirm.value = '';
+            signUpPasswordError.textContent = '';
+            // Focus password field to trigger browser's strong password suggestion
+            setTimeout(() => signUpPassword.focus(), 100);
+        });
+
+        // Resend OTP
+        otpResendBtn.addEventListener('click', () => {
+            if (!pendingOtp) return;
+            otpError.textContent = '';
+            otpResendBtn.disabled = true;
+            sendOtpToEmail(pendingOtp.email)
+                .then(() => {
+                    otpError.style.color = '#22c55e';
+                    otpError.textContent = 'New code sent!';
+                    setTimeout(() => { otpError.textContent = ''; otpError.style.color = ''; }, 3000);
+                    otpResendBtn.disabled = false;
+                })
+                .catch(() => {
+                    otpError.textContent = 'Failed to resend.';
+                    otpResendBtn.disabled = false;
+                });
+        });
+
+        // Back from OTP to email entry
+        otpBackBtn.addEventListener('click', () => {
+            hideAllAuthStates();
+            authTitle.textContent = 'Sign Up';
+            authSignUpEmailState.style.display = '';
+            pendingOtp = null;
+        });
+
+        // --- SIGN UP Step 3: Set password + create Firebase account ---
+        authSignUpPasswordState.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const pw = signUpPassword.value;
+            const pw2 = signUpPasswordConfirm.value;
+            signUpPasswordError.textContent = '';
+
+            if (!pw || pw.length < 6) { signUpPasswordError.textContent = 'Password must be at least 6 characters.'; return; }
+            if (pw !== pw2) { signUpPasswordError.textContent = 'Passwords do not match.'; return; }
+            if (!verifiedSignUpEmail) { signUpPasswordError.textContent = 'Email not verified. Start over.'; return; }
+            if (!firebaseAuth) { signUpPasswordError.textContent = 'Firebase not configured. See code comments.'; return; }
+
+            createAccountBtn.disabled = true;
+            firebaseAuth.createUserWithEmailAndPassword(verifiedSignUpEmail, pw)
+                .then(() => {
+                    verifiedSignUpEmail = null;
+                    // Page reload triggers Chrome's "Save password?" prompt
+                    // Firebase Auth persists the session, so user stays logged in
+                    window.location.reload();
+                })
+                .catch(err => {
+                    createAccountBtn.disabled = false;
+                    if (err.code === 'auth/email-already-in-use') {
+                        signUpPasswordError.textContent = 'An account with this email already exists. Sign in instead.';
+                    } else {
+                        signUpPasswordError.textContent = err.message;
+                    }
+                });
+        });
+
+        // --- Firebase auth state listener ---
+        if (firebaseAuth) {
+            firebaseAuth.onAuthStateChanged(user => {
+                if (user) {
+                    currentUser = { email: user.email, uid: user.uid };
+                } else {
+                    currentUser = null;
+                }
+                updateProfileUI();
+                // Close auth modal on successful sign-in/sign-up
+                if (user) {
+                    authModal.classList.remove('show');
+                }
+            });
+        }
+
+        // --- Profile button ---
+        profileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isLoggedIn()) {
+                profileDropdownEmail.textContent = currentUser.email;
+                const rect = profileBtn.getBoundingClientRect();
+                profileDropdown.style.top = (rect.bottom + 6) + 'px';
+                profileDropdown.style.right = (window.innerWidth - rect.right) + 'px';
+                profileDropdown.classList.toggle('show');
+            } else {
+                openAuthModal('signin');
+            }
+        });
+
+        // Close dropdown on outside click
+        document.addEventListener('click', () => {
+            profileDropdown.classList.remove('show');
+        });
+
+        // Sign out
+        signOutBtn.addEventListener('click', () => {
+            if (firebaseAuth) firebaseAuth.signOut();
+            currentUser = null;
+            updateProfileUI();
+            profileDropdown.classList.remove('show');
+            // Reset to idle screen
+            currentImage = null;
+            currentPokemonData = [];
+            previewBar.classList.remove('show');
+            identifyBtn.disabled = true;
+            urlInput.value = '';
+            fileInput.value = '';
+            showScreen('idle');
+        });
+
+        // --- API Key modal ---
+        function openApiKeyModal(message, isError) {
+            const stored = (() => { try { return localStorage.getItem(USER_KEY_STORAGE) || ''; } catch (e) { return ''; } })();
+            apiKeyInput.value = stored;
+            apiKeyStatus.className = 'api-key-status' + (isError ? ' error' : '');
+            apiKeyStatus.textContent = message || (stored ? 'A key is currently saved in this browser.' : '');
+            // If the host operator pinned a CONFIG key, BYO is moot — show a note.
+            const pinned = (CONFIG.GEMINI_API_KEY || '').trim();
+            if (pinned) {
+                apiKeyStatus.textContent = 'This deployment ships its own Gemini key, so a personal key is not required.';
+                apiKeyInput.disabled = true;
+                apiKeySaveBtn.disabled = true;
+                apiKeyClearBtn.disabled = true;
+            } else {
+                apiKeyInput.disabled = false;
+                apiKeySaveBtn.disabled = false;
+                apiKeyClearBtn.disabled = false;
+            }
+            apiKeyModal.classList.add('show');
+            setTimeout(() => apiKeyInput.focus(), 50);
+        }
+
+        function closeApiKeyModal() {
+            apiKeyModal.classList.remove('show');
+        }
+
+        apiKeyMenuBtn.addEventListener('click', () => {
+            profileDropdown.classList.remove('show');
+            openApiKeyModal();
+        });
+
+        closeApiKeyBtn.addEventListener('click', closeApiKeyModal);
+        apiKeyModal.addEventListener('click', (e) => {
+            if (e.target === apiKeyModal) closeApiKeyModal();
+        });
+
+        apiKeySaveBtn.addEventListener('click', () => {
+            const key = apiKeyInput.value.trim();
+            if (!key) {
+                apiKeyStatus.className = 'api-key-status error';
+                apiKeyStatus.textContent = 'Paste a key first, or click Clear to remove the saved one.';
+                return;
+            }
+            if (!setUserGeminiKey(key)) {
+                apiKeyStatus.className = 'api-key-status error';
+                apiKeyStatus.textContent = 'Could not save (localStorage blocked). Try a regular browser window.';
+                return;
+            }
+            apiKeyStatus.className = 'api-key-status success';
+            apiKeyStatus.textContent = 'Saved. You can now identify Pokémon.';
+            setTimeout(closeApiKeyModal, 900);
+        });
+
+        apiKeyClearBtn.addEventListener('click', () => {
+            setUserGeminiKey('');
+            apiKeyInput.value = '';
+            apiKeyStatus.className = 'api-key-status';
+            apiKeyStatus.textContent = 'Key removed from this browser.';
+        });
+
+        // Initialize
+        updateProfileUI();
+        initDarkMode();
+    </script>
+</body>
+</html>
