@@ -1388,6 +1388,65 @@
             text-decoration: underline;
         }
 
+        /* Google sign-in button + "or" divider */
+        .auth-google-btn {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #1f2937;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: background 0.15s, border-color 0.15s;
+            margin-bottom: 14px;
+        }
+
+        .auth-google-btn:hover {
+            background: #f8fafc;
+            border-color: #475569;
+        }
+
+        .auth-google-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .auth-google-btn svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #64748b;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin: 4px 0 14px;
+        }
+
+        .auth-divider::before,
+        .auth-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: #334155;
+        }
+
+        body.light-mode .auth-divider::before,
+        body.light-mode .auth-divider::after {
+            background: #cbd5e1;
+        }
+
         /* ===== PROFILE BUTTON ===== */
         .profile-btn {
             position: relative;
@@ -1754,16 +1813,28 @@
             </div>
 
             <!-- SIGN IN -->
-            <form id="authSignInState" autocomplete="on">
-                <div class="auth-input-group">
-                    <input type="email" id="signInEmail" name="username" autocomplete="username" class="auth-email-input" placeholder="Email address">
-                    <input type="password" id="signInPassword" name="password" autocomplete="current-password" class="auth-email-input" placeholder="Password">
-                    <button type="submit" class="auth-send-btn" id="signInBtn">Sign In</button>
-                </div>
-                <a href="#" class="auth-forgot-link" id="showForgotLink">Forgot password?</a>
-                <p class="auth-error" id="signInError"></p>
-                <p class="auth-switch">Don't have an account? <a href="#" id="showSignUpLink">Sign Up</a></p>
-            </form>
+            <div id="authSignInState">
+                <button type="button" class="auth-google-btn" id="googleSignInBtn" aria-label="Sign in with Google">
+                    <svg viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+                        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                        <path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/>
+                        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.167 6.656 3.58 9 3.58z"/>
+                    </svg>
+                    Continue with Google
+                </button>
+                <div class="auth-divider">or</div>
+                <form id="authSignInForm" autocomplete="on">
+                    <div class="auth-input-group">
+                        <input type="email" id="signInEmail" name="username" autocomplete="username" class="auth-email-input" placeholder="Email address">
+                        <input type="password" id="signInPassword" name="password" autocomplete="current-password" class="auth-email-input" placeholder="Password">
+                        <button type="submit" class="auth-send-btn" id="signInBtn">Sign In</button>
+                    </div>
+                    <a href="#" class="auth-forgot-link" id="showForgotLink">Forgot password?</a>
+                    <p class="auth-error" id="signInError"></p>
+                    <p class="auth-switch">Don't have an account? <a href="#" id="showSignUpLink">Sign Up</a></p>
+                </form>
+            </div>
 
             <!-- FORGOT PASSWORD -->
             <form id="authForgotPasswordState" style="display:none;" autocomplete="on">
@@ -1778,6 +1849,16 @@
 
             <!-- SIGN UP Step 1: Email + Send OTP -->
             <div id="authSignUpEmailState" style="display:none;">
+                <button type="button" class="auth-google-btn" id="googleSignUpBtn" aria-label="Sign up with Google">
+                    <svg viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+                        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                        <path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/>
+                        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.167 6.656 3.58 9 3.58z"/>
+                    </svg>
+                    Sign up with Google
+                </button>
+                <div class="auth-divider">or sign up with email</div>
                 <p class="auth-subtitle">Verify your email to create an account.</p>
                 <div class="auth-input-group">
                     <input type="email" id="signUpEmail" class="auth-email-input" placeholder="Email address">
@@ -1945,6 +2026,9 @@
         const closeAuthBtn = document.getElementById('closeAuthBtn');
         // Sign In refs
         const authSignInState = document.getElementById('authSignInState');
+        const authSignInForm = document.getElementById('authSignInForm');
+        const googleSignInBtn = document.getElementById('googleSignInBtn');
+        const googleSignUpBtn = document.getElementById('googleSignUpBtn');
         const signInEmail = document.getElementById('signInEmail');
         const signInPassword = document.getElementById('signInPassword');
         const signInBtn = document.getElementById('signInBtn');
@@ -2814,8 +2898,43 @@
                 });
         });
 
+        // --- GOOGLE SIGN-IN (popup; Firebase OAuth) ---
+        function signInWithGoogle(triggerBtn) {
+            if (!firebaseAuth) {
+                if (signInError) signInError.textContent = 'Firebase not configured.';
+                return;
+            }
+            const provider = new firebase.auth.GoogleAuthProvider();
+            // Make sure the user gets the account chooser even if they're already signed in to Google
+            provider.setCustomParameters({ prompt: 'select_account' });
+            if (triggerBtn) triggerBtn.disabled = true;
+            firebaseAuth.signInWithPopup(provider)
+                .then(() => {
+                    // onAuthStateChanged handles the UI swap; reload to trigger any password-manager prompts etc.
+                    window.location.reload();
+                })
+                .catch(err => {
+                    if (triggerBtn) triggerBtn.disabled = false;
+                    // Popup closed or cancelled by the user — silent, no error
+                    if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+                    const target = (authSignUpEmailState.style.display !== 'none' ? signUpEmailError : signInError);
+                    if (err.code === 'auth/popup-blocked') {
+                        target.textContent = 'Popup was blocked. Allow popups for this site and try again.';
+                    } else if (err.code === 'auth/account-exists-with-different-credential') {
+                        target.textContent = 'An account with this email already exists using a different sign-in method.';
+                    } else if (err.code === 'auth/unauthorized-domain') {
+                        target.textContent = 'This domain is not authorized in Firebase. Add it under Auth → Settings → Authorized domains.';
+                    } else {
+                        target.textContent = err.message;
+                    }
+                });
+        }
+
+        googleSignInBtn.addEventListener('click', () => signInWithGoogle(googleSignInBtn));
+        googleSignUpBtn.addEventListener('click', () => signInWithGoogle(googleSignUpBtn));
+
         // --- SIGN IN (email + password via Firebase) ---
-        authSignInState.addEventListener('submit', (e) => {
+        authSignInForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const email = signInEmail.value.trim();
             const password = signInPassword.value;
