@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "find-pokemons-3626f"
+  },
+  "targets": {
+    "find-pokemons-3626f": {
+      "hosting": {
+        "production": [
+          "find-pokemons-3626f"
+        ],
+        "preview": [
+          "pokemons-preview"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

@@ -1,23 +1,50 @@
 {
-  "hosting": {
-    "public": ".",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**",
-      "config.js",
-      "config.example.js",
-      "API_S.env",
-      "pokesearch-backup.html",
-      "package.json",
-      "package-lock.json",
-      "README.md"
-    ],
-    "headers": [
-      {
-        "source": "**/*.@(html)",
-        "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
-      }
-    ]
-  }
+  "hosting": [
+    {
+      "target": "production",
+      "public": ".",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/.*/**",
+        "**/node_modules/**",
+        "private_api_config.js",
+        "public_api_config.example.js",
+        "private_api_config.example.js",
+        "pokesearch-backup.html",
+        "package.json",
+        "package-lock.json",
+        "README.md"
+      ],
+      "headers": [
+        {
+          "source": "**/*.@(html)",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+        }
+      ]
+    },
+    {
+      "target": "preview",
+      "public": ".",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/.*/**",
+        "**/node_modules/**",
+        "private_api_config.js",
+        "public_api_config.example.js",
+        "private_api_config.example.js",
+        "pokesearch-backup.html",
+        "package.json",
+        "package-lock.json",
+        "README.md"
+      ],
+      "headers": [
+        {
+          "source": "**/*.@(html)",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+        }
+      ]
+    }
+  ]
 }

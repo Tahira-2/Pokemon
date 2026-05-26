@@ -26,14 +26,18 @@ You'll need free accounts at:
 ```sh
 git clone <this-repo>
 cd pokemon
-cp config.example.js config.js
+cp public_api_config.example.js public_api_config.js
+cp private_api_config.example.js private_api_config.js
 ```
 
-Open `config.js` and fill in each value:
+Open the two new files and fill in your values:
 
-- **`GEMINI_API_KEY`** — from AI Studio. If set, the app uses this key for everyone and the "Bring your own key" prompt is hidden. If left empty, every visitor must paste their own key.
+**`public_api_config.js`** (deployed; values are designed to be client-visible)
 - **`FIREBASE`** — in the Firebase Console, create a project → add a web app → copy the config object. Then enable **Email/Password** under Authentication → Sign-in method.
 - **`EMAILJS_*`** — create an EmailJS service + template (the template must accept `to_email`, `otp`, and `app_name` variables).
+
+**`private_api_config.js`** (gitignored AND deploy-ignored)
+- **`GEMINI_API_KEY`** — leave empty for BYO (every visitor pastes their own key in the app's settings modal). Only set it for personal local dev — `firebase deploy` won't ship this file regardless.
 
 ### 2. Lock down Firebase
 
@@ -76,14 +80,14 @@ The first `firebase deploy` will ask which project to link — pick the one matc
 
 - `index.html` — entire app (HTML + CSS + JS in one file).
 - `firebase.json` — Firebase Hosting config; tells `firebase deploy` what to ship and what to skip.
-- `config.example.js` — template; commit this.
-- `config.js` — your real keys; **gitignored**, never commit, never deployed.
+- `.firebaserc` — Firebase project + hosting targets (production / preview); committed so future deploys skip the picker.
+- `public_api_config.js` — Firebase + EmailJS values. **Gitignored** (so forks bring their own), **deployed** (so the live site can sign users in). Contents are designed to be client-visible.
+- `private_api_config.js` — Gemini key only. **Gitignored AND deploy-ignored.** Stays on your machine only. Empty value means BYO mode for the deployed site.
+- `*_api_config.example.js` — templates for the two configs; commit these.
 - `pokesearch-backup.html` — older snapshot.
-- `package.json` — only there to pull in the `firebase` npm package for local development; the deployed site loads Firebase from a CDN.
+- `package.json` / `package-lock.json` — only there to pull in the `firebase` npm package for local development; the deployed site loads Firebase from a CDN.
 
 ## Notes on cost & security
 
 - **Gemini key** is the only one with real per-call cost. The BYO flow keeps the hosted site free.
-- **Firebase `apiKey`** is *meant* to be visible in client code — it identifies your project, not authenticates it. Security comes from auth rules + authorized domains.
-- **EmailJS public key** is also meant to be client-visible; quota is per-template.
 - localStorage scope: a user's Gemini key lives only in the browser/profile that set it. Clearing site data removes it.

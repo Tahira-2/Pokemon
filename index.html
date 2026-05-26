@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PokeSearch - Pokedex</title>
-    <!-- EmailJS SDK (free — 200 emails/month, used for OTP on signup) -->
+    <!-- EmailJS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <!-- Firebase SDK (free Spark plan — password auth + persistence) -->
+    <!-- Firebase SDK (password auth + persistence) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <style>
@@ -1928,11 +1928,22 @@
         </div>
     </div>
 
-    <script src="config.js"></script>
+    <!--
+        Config is split into two files:
+          public_api_config.js  — Firebase + EmailJS (public-safe, deployed)
+          private_api_config.js — Gemini key (gitignored AND deploy-ignored)
+    -->
+    <script src="public_api_config.js"></script>
+    <script src="private_api_config.js"></script>
     <script>
-        // Gemini key resolution: CONFIG (set by self-hosters) wins; otherwise
-        // fall back to the user's own key stored in localStorage. The URL is
-        // built per-request so updates take effect without a page reload.
+        // Merge public + private.
+        const CONFIG = Object.assign(
+            {},
+            window.PUBLIC_CONFIG || {},
+            window.PRIVATE_CONFIG || {}
+        );
+
+        // Gemini key resolution: CONFIG (set by self-hosters) 
         const GEMINI_MODEL_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent';
         const USER_KEY_STORAGE = 'userGeminiKey';
 

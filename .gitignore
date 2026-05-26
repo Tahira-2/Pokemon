@@ -1,9 +1,12 @@
-# API keys and secrets
-config.js
-API_S.env
+# API keys / project-specific config
+public_api_config.js
+private_api_config.js
 
 # Dependencies
 node_modules/
+
+# Firebase CLI local cache
+.firebase/
 
 # OS files
 .DS_Store
